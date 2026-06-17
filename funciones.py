@@ -1,6 +1,6 @@
 #Elaborado por Derian Segura y Juan Gonzalez
 #Fecha de creacion: 11/06/26 a las 6:41
-#Ultima modificacion: 15/06/26 18:38
+#Ultima modificacion: 17/06/26 10:54
 #Version: 3.14.3
 
 #importaciones
@@ -14,11 +14,45 @@ import math
 from datetime import datetime
 from tkinter import ttk
 
+class Vehiculo:
+    def __init__(self, datosDict):
+        #Toma los datos por separado de cada vehiculo y los "modela"
+        self.placa = datosDict.get("placa")
+        self.marca = datosDict.get("marca")
+        self.color = datosDict.get("color")
+        self.horaEntrada = datosDict.get("hora de entrada")
+        self.tipo = datosDict.get("tipo")
+
+    def obtenerDatosVehiculos(self, llave, valorDefecto):
+        #Se crea un diccionario con los atributos de los vehiculos para que se pueda consultar por sus datos especificos
+        datosVehiculos = {"placa": self.placa,
+                          "marca": self.marca,
+                          "color": self.color,
+                          "hora de entrada": self.horaEntrada,
+                          "tipo": self.tipo}
+        return datosVehiculos.get(llave, valorDefecto)
+
+class EspacioParqueo:
+    def __init__(self, numCampo, tipoEspacio, libre, vehiculo):
+        #Se almacena los datos de los espacios invidualmente 
+        self.numCampo = numCampo
+        self.tipoEspacio = tipoEspacio
+        self.libre = libre
+        self.vehiculo = vehiculo #Aquí se guarda la instancia de Vehiculo
+
+    def obtenerDatosEspacio(self, llave, valorDefecto):
+        #Se crea un diccionario con los atributos de los estacionamiento para que se pueda consultar por sus datos especificos
+        datosEspacios = {"numCampo": self.numCampo,
+                         "tipoEspacio": self.tipoEspacio,
+                         "libre": self.libre,
+                         "vehiculo": self.vehiculo}
+        return datosEspacios.get(llave, valorDefecto)
+
 class AplicacionParqueo:
     def __init__(self, ventanaPrincipal):
         #Almacenamos la ventana raíz dentro del objeto
         self.ventana = ventanaPrincipal
-        #Atributos de la aplicación (Antes estaban en el diccionario estadoApp)
+        #Atributos de la aplicación 
         self.parqueosPorPagina = 25
         self.paginaActual = 0
         self.baseDatosParqueos = []
@@ -26,8 +60,8 @@ class AplicacionParqueo:
         self.colorFondoCrema = "#FFF3DD"
         self.colorSensorVerde = "#C8E6C9"
         self.colorSensorRojo = "#FFCDD2"
-        self.colorDiscapacitado = "#B3E5FC" # Azul claro para espacio de discapacidad libre
-        self.colorElectrico = "#E0E050"     # Morado claro para auto eléctrico libre
+        self.colorDiscapacitado = "#B3E5FC" 
+        self.colorElectrico = "#E0E050"     
         self.colorTexto = "#000000"
         self.colorFlechas = "#6B9FCF"
         self.mensSubtitulo = None
@@ -39,8 +73,8 @@ class AplicacionParqueo:
         self.dimensionarVentana()
         #Lógica de bifurcación inicial de base de datos
         if self.cargarBaseDatosExistente():
-            self.crearEstructuraVentanas()
-            self.dibujarPantallaActual()
+            self.mostrarEspaciosParqueo()
+            self.mostrarEspaciosPaginaActual()
         else:
             self.mostrarPantallaConfiguracion()
 
@@ -66,12 +100,12 @@ class AplicacionParqueo:
         return False
     
     def guardarDatosParqueo(self, cantidad, nombreArchivo):
-        #Base URL de tu API de Mockaroo
+        #Base url de la api de Mockaroo
         urlBase = "https://my.api.mockaroo.com/parqueo.json?key=95e5d290"
         apiUrl = f"{urlBase}&qty={cantidad}"  #&qty= le indica a Mockaroo cuantos registros necesita que devuelva
         try:
             print(f"Obteniendo {cantidad} registros desde la API...")
-            #Se descargan los datos de la API
+            #Se descargan los datos de la api
             response = requests.get(apiUrl)
             data = response.json() #Se traduce el contenido del json para ser utilizado
             #Se guardan los datos en un archivo .json local, usamos encoding='utf-8' para que soporte tildes o caracteres especiales sin romperse
@@ -82,23 +116,22 @@ class AplicacionParqueo:
             print(f"Los datos se han guardado en el archivo: {nombreArchivo}")
             return data
         except:
-            print(f"No se establecer conexion con la API o descargar de los datos")
+            print(f"No se establecio conexion con la API o descargar de los datos")
             return None
 
     def verificarYCrear(self):
+        #Se valida si el numero de espacios que ingreso el usuario sea realmente un numero
         textoUsuario = self.entradaCantidad.get()
         if not textoUsuario.isdigit():
             messagebox.showwarning("Datos Inválidos", "Por favor, ingrese un número entero válido.")
             return
         cantidad = int(textoUsuario)
+        #Todavia tenemos dudas de cual es el minimo y el maximo de estacionamientos, de momento, este es el rango que pensamos
         if 1 <= cantidad <= 75:
-            #Se crean los espacios vacíos junto con su número
+            #Se cualculan cuantos espacios del total se veran reflejados en la interfaz de espacios segun su tipo(normal, discapacitado o electrico)
             datosDescargados = self.guardarDatosParqueo(cantidad, "parqueo.json")
-            if datosDescargados == None:
-                return
-            random.shuffle(datosDescargados)    #random.shuffle permite tener aleatoriedad en las marcas, colores, etc y asi que no salgan igual siempre
             placaVehiculo = 0
-            cantDiscapacidad = math.ceil(cantidad * 0.05)    #math.ceil redondea los numeros
+            cantDiscapacidad = math.ceil(cantidad * 0.05)    #Se redondea hacia arriba el 5% de los espacios para discapacitados para que no queden en decimales
             if cantDiscapacidad < 2:
                 cantDiscapacidad = 2
             incluyeElectrico = messagebox.askyesno("Vehículo Eléctrico", "¿Desea incorporar un espacio para vehículos eléctricos?")
@@ -108,48 +141,59 @@ class AplicacionParqueo:
                 cantElectrico = 0
             campoActual = 1
             parqueosGenerados = []
+            #Se crean y se les asignan los datos de los vehiculos y el numero de campo que ocupan los espacios para discapacitados
             for indice in range(cantDiscapacidad):
                 vehiculo = {}
                 if placaVehiculo < len(datosDescargados):
-                    vehiculo = datosDescargados[placaVehiculo].copy()    #.copy permite utilizar el valor de los datos sin modificarlos 
+                    vehiculo = datosDescargados[placaVehiculo].copy()    #Se utiliza el valor de la placa del vehiculo sin modificarlo
                     placaVehiculo += 1
                     vehiculo["hora de entrada"] = self.generarHoraEntradaAleatoria()
-                parqueosGenerados.append({"numCampo": f"C{campoActual}",
-                                          "tipoEspacio": "discapacidad",
-                                          "libre": False,
-                                          "vehiculo": vehiculo})
+                objetoVehiculo = Vehiculo(vehiculo)
+                parqueosGenerados.append(EspacioParqueo(numCampo=f"C{campoActual}", 
+                                                        tipoEspacio="discapacidad", 
+                                                        libre=False, 
+                                                        vehiculo=objetoVehiculo))
                 campoActual += 1
+            #Si el usuario confimara que quiere un espacio para un vehiculo electrico, se crea y se asignan los datos del vehiculo y el numero de campo que ocupara el espacio
             if incluyeElectrico:
                 vehiculo = {}
                 if placaVehiculo < len(datosDescargados):
-                    vehiculo = datosDescargados[placaVehiculo].copy() #.copy permite utilizar el valor de los datos sin modificarlos
+                    vehiculo = datosDescargados[placaVehiculo].copy() #Se utiliza el valor de la placa del vehiculo sin modificarlo
                     placaVehiculo += 1
                     vehiculo["hora de entrada"] = self.generarHoraEntradaAleatoria()
-                parqueosGenerados.append({"numCampo": f"C{campoActual}",
-                                          "tipoEspacio": "electrico",
-                                          "libre": False,
-                                          "vehiculo": vehiculo})
+                objetoVehiculo = Vehiculo(vehiculo)
+                parqueosGenerados.append(EspacioParqueo(numCampo=f"C{campoActual}", 
+                                                        tipoEspacio="electrico", 
+                                                        libre=False, 
+                                                        vehiculo=objetoVehiculo))
                 campoActual += 1
+            #Se calculan cuantos espacios normales quedaran ocupados y cuantos quedaran libres, acomodandolos de manera aleatoria
             espaciosRestantes = cantidad - cantDiscapacidad - cantElectrico
-            cantLibresNormales = math.ceil(espaciosRestantes * 0.05)   #math.ceil redondea los numeros
+            cantLibresNormales = math.ceil(espaciosRestantes * 0.05)   #Se redondea hacia arriba el 5% de los espacios normales libres para que no quede en decimales
             cantOcupadosNormales = espaciosRestantes - cantLibresNormales
             estadosNormales = [True] * cantLibresNormales + [False] * cantOcupadosNormales #Se crea una lista con el estado de todos los parqueos normales
             random.shuffle(estadosNormales)   #random.shuffle permite tener aleatoriedad a la hora de visualizar los espacios normales del parqueo
+            #Se crean y se les asignan los datos de los vehiculos y el numero de campo que ocupan los espacios normales
             for indice in range(espaciosRestantes):
                 estaLibre = estadosNormales[indice]
                 vehiculo = None
                 if not estaLibre:
                     if placaVehiculo < len(datosDescargados):
-                        vehiculo = datosDescargados[placaVehiculo].copy()  #.copy permite utilizar el valor de los datos sin modificarlos
+                        vehiculo = datosDescargados[placaVehiculo].copy()  #Se utiliza el valor de la placa del vehiculo sin modificarlo
                     else: 
-                        vehiculo ={}  
+                        vehiculo = {}  
                     placaVehiculo += 1
                     vehiculo["hora de entrada"] = self.generarHoraEntradaAleatoria()
-                parqueosGenerados.append({"numCampo": f"C{campoActual}",
-                                          "tipoEspacio": "normal",
-                                          "libre": estaLibre,
-                                          "vehiculo": vehiculo})
+                if vehiculo:
+                    objetoVehiculo = Vehiculo(vehiculo)
+                else:
+                    None
+                parqueosGenerados.append(EspacioParqueo(numCampo=f"C{campoActual}", 
+                                                        tipoEspacio="normal", 
+                                                        libre=estaLibre, 
+                                                        vehiculo=objetoVehiculo))
                 campoActual += 1
+            #Se crea el archivo que contendra de forma binaria la base de datos del parqueo
             try:
                 with open("bdParqueo.txt", "wb") as archivoBinario:
                     pickle.dump(parqueosGenerados, archivoBinario)
@@ -161,14 +205,15 @@ class AplicacionParqueo:
             self.mensInstruccion.destroy()
             self.entradaCantidad.destroy()
             self.botonConfirmar.destroy()
-            self.ventana.grid_columnconfigure(0, weight=0)  #.grid_columnconfigure y grid_rowconfigure hacen que no hayan mudificaciones visuales cuando se agranda la ventana
+            self.ventana.grid_columnconfigure(0, weight=0)  #Se evitan mudificaciones visuales cuando se agranda la ventana
             self.ventana.grid_rowconfigure(0, weight=0)
-            self.crearEstructuraVentanas()
-            self.dibujarPantallaActual()
+            self.mostrarEspaciosParqueo()
+            self.mostrarEspaciosPaginaActual()
         else:
             messagebox.showwarning("Rango Incorrecto", "La cantidad debe estar entre 1 y 75 espacios.")
 
     def mostrarPantallaConfiguracion(self):
+        #Se muestra el mensaje para ingresar la cantidad de vehiculos si no hubiera una base de datos anteriormente, ademas de la caja de texto y el boton para ingresar la cantidad
         self.mensInstruccion = tk.Label(self.ventana, 
                                     text="No se detectó una base de datos activa.\n\nIngrese la cantidad de parqueos a registrar (Máximo 75):", 
                                     font=("Arial", 14, "bold"), 
@@ -180,7 +225,7 @@ class AplicacionParqueo:
                                    width=10, 
                                    justify="center")
         self.entradaCantidad.place(x=520, y=290)
-        self.ventana.grid_columnconfigure(0, weight=1)  #.grid_columnconfigure y grid_rowconfigure hacen que no hayan mudificaciones visuales cuando se agranda la ventana
+        self.ventana.grid_columnconfigure(0, weight=1)  #Se evitan mudificaciones visuales cuando se agranda la ventana
         self.ventana.grid_rowconfigure(0, weight=1)
         self.botonConfirmar = tk.Button(self.ventana,
                                  text="Ingresar cantidad",
@@ -190,7 +235,7 @@ class AplicacionParqueo:
                                  pady=5)
         self.botonConfirmar.place(x=490, y=330)
 
-    def crearEstructuraVentanas(self):
+    def mostrarEspaciosParqueo(self):
         mensTitulo = tk.Label(self.ventana,
                               text="Espacios vacíos y ocupados del Parqueo",
                               font=("Arial", 16, "bold"),
@@ -227,7 +272,7 @@ class AplicacionParqueo:
                                             command=self.paginaSiguiente)
         self.botonDerecha.grid(row=2, column=10, rowspan=5, padx=(15, 20), sticky="ns")
 
-    def dibujarPantallaActual(self):
+    def mostrarEspaciosPaginaActual(self):
         #Desaparece los parqueos de la página anterior
         for botonAnterior in self.listaBotonesDinamicos:
             botonAnterior.destroy()
@@ -246,12 +291,12 @@ class AplicacionParqueo:
         #Segmentación por filas
         espaciosFilaSuperior = parqueosPantalla[0:9]
         espaciosFilaMedio = parqueosPantalla[9:17]
-        spacesFilaInferior = parqueosPantalla[17:25]
+        espaciosFilaInferior = parqueosPantalla[17:25]
         #Se crea la fila de parqueos superior
         columnaActual = 0
         for parqueoEspecifico in espaciosFilaSuperior:  
-            if parqueoEspecifico["libre"]:
-                tipoEspacio = parqueoEspecifico.get("tipoEspacio", "normal")
+            if parqueoEspecifico.libre:
+                tipoEspacio = parqueoEspecifico.tipoEspacio
                 if tipoEspacio == "discapacidad":
                     colorFondoBoton = self.colorDiscapacitado
                 elif tipoEspacio == "electrico":
@@ -260,7 +305,7 @@ class AplicacionParqueo:
                     colorFondoBoton = self.colorSensorVerde
             else:
                 #Si está ocupado pero es de discapacidad o eléctrico, se le asigna un color diferente al normal
-                tipoEspacio = parqueoEspecifico.get("tipoEspacio", "normal")
+                tipoEspacio = parqueoEspecifico.tipoEspacio
                 if tipoEspacio == "discapacidad":
                     colorFondoBoton = "#7D7FC1"
                 elif tipoEspacio == "electrico":
@@ -268,7 +313,7 @@ class AplicacionParqueo:
                 else:
                     colorFondoBoton = self.colorSensorRojo
             botonParqueo = tk.Button(self.ventana, 
-                                     text=parqueoEspecifico["numCampo"], 
+                                     text=parqueoEspecifico.numCampo, 
                                      font=("Arial", 10, "bold"), 
                                      bg=colorFondoBoton, 
                                      fg=self.colorTexto, 
@@ -289,8 +334,8 @@ class AplicacionParqueo:
         #Se crea la fila de parqueos del medio
         columnaActual = 0
         for parqueoEspecifico in espaciosFilaMedio:
-            if parqueoEspecifico["libre"]:
-                tipoEspacio = parqueoEspecifico.get("tipoEspacio", "normal")
+            if parqueoEspecifico.libre:
+                tipoEspacio = parqueoEspecifico.tipoEspacio
                 if tipoEspacio == "discapacidad":
                     colorFondoBoton = self.colorDiscapacitado
                 elif tipoEspacio == "electrico":
@@ -299,7 +344,7 @@ class AplicacionParqueo:
                     colorFondoBoton = self.colorSensorVerde 
             else:
                 #Si está ocupado pero es de discapacidad o eléctrico, se le asigna un color diferente al normal
-                tipoEspacio = parqueoEspecifico.get("tipoEspacio", "normal")
+                tipoEspacio = parqueoEspecifico.tipoEspacio
                 if tipoEspacio == "discapacidad":
                     colorFondoBoton = "#2E3078"
                 elif tipoEspacio == "electrico":
@@ -307,7 +352,7 @@ class AplicacionParqueo:
                 else:
                     colorFondoBoton = self.colorSensorRojo
             botonParqueo = tk.Button(self.ventana, 
-                                   text=parqueoEspecifico["numCampo"], 
+                                   text=parqueoEspecifico.numCampo, 
                                    font=("Arial", 10, "bold"),
                                    bg=colorFondoBoton,
                                    fg=self.colorTexto,
@@ -320,7 +365,7 @@ class AplicacionParqueo:
             self.listaBotonesDinamicos.append(botonParqueo)
             columnaActual += 1
         #Se crea el espacio entre la fila del medio y la fila inferior, solo si se crea la fila inferior
-        if len(espaciosFilaMedio) > 0 or len(spacesFilaInferior) > 0:
+        if len(espaciosFilaMedio) > 0 or len(espaciosFilaInferior) > 0:
             pasilloInferior = tk.Label(self.ventana, 
                                        bg=self.colorFondoCrema, 
                                        height=2)
@@ -328,9 +373,9 @@ class AplicacionParqueo:
             self.listaBotonesDinamicos.append(pasilloInferior)
         #Se crea la fila de parqueos inferior
         columnaActual = 0
-        for parqueoEspecifico in spacesFilaInferior:
-            if parqueoEspecifico["libre"]:
-                tipoEspacio = parqueoEspecifico.get("tipoEspacio", "normal")
+        for parqueoEspecifico in espaciosFilaInferior:
+            if parqueoEspecifico.libre:
+                tipoEspacio = parqueoEspecifico.tipoEspacio
                 if tipoEspacio == "discapacidad":
                     colorFondoBoton = self.colorDiscapacitado
                 elif tipoEspacio == "electrico":
@@ -339,7 +384,7 @@ class AplicacionParqueo:
                     colorFondoBoton = self.colorSensorVerde
             else:
                 #Si está ocupado pero es de discapacidad o eléctrico, se le asigna un color diferente al normal
-                tipoEspacio = parqueoEspecifico.get("tipoEspacio", "normal")
+                tipoEspacio = parqueoEspecifico.tipoEspacio
                 if tipoEspacio == "discapacidad":
                     colorFondoBoton = "#2E3078"
                 elif tipoEspacio == "electrico":
@@ -347,7 +392,7 @@ class AplicacionParqueo:
                 else:
                     colorFondoBoton = self.colorSensorRojo
             botonParqueo = tk.Button(self.ventana,
-                                   text=parqueoEspecifico["numCampo"],
+                                   text=parqueoEspecifico.numCampo,
                                    font=("Arial", 10, "bold"),
                                    bg=colorFondoBoton,
                                    fg=self.colorTexto,
@@ -374,14 +419,11 @@ class AplicacionParqueo:
             minutoLimite = 0
         #Se elige la hora al azar entre las 7 y la hora actual
         horaAleatoria = random.randint(7, horaLimite)
-        #Si cayó en la hora actual, no podemos pasarnos del minuto límite
         if horaAleatoria == horaLimite:
             minutoAleatorio = random.randint(0, minutoLimite)
         else:
             minutoAleatorio = random.randint(0, 59)
-        #Se elige los segundos de manera aleatoria
         segundoAleatorio = random.randint(0, 59)
-        #Se convierten los números a texto con un formato limpio
         #Usamos .zfill(2) para que si el número es un 5, se transforme en 05
         textoHora = str(horaAleatoria).zfill(2)
         textoMinuto = str(minutoAleatorio).zfill(2)
@@ -390,6 +432,7 @@ class AplicacionParqueo:
         return resultadoFinal
 
     def actualizarEstadoFlechas(self):
+        #Se habilitan y deshabilitan las flechas dependiendo si hay mas paginas para avanzar o retroceder o si ya llego a un tope
         if self.totalParqueos <= self.parqueosPorPagina:
             self.botonIzquierda.config(state="disabled", bg="#A6B9CB")
             self.botonDerecha.config(state="disabled", bg="#A6B9CB")
@@ -406,22 +449,22 @@ class AplicacionParqueo:
 
     def paginaSiguiente(self):
         self.paginaActual += 1
-        self.dibujarPantallaActual()
+        self.mostrarEspaciosPaginaActual()
 
     def paginaAnterior(self):
         self.paginaActual -= 1
-        self.dibujarPantallaActual()
+        self.mostrarEspaciosPaginaActual()
 
     def clickEspacio(self, parqueoEspecifico):
-        if parqueoEspecifico["libre"]:
+        if parqueoEspecifico.libre:
             return
-        vehiculo = parqueoEspecifico["vehiculo"]
+        vehiculo = parqueoEspecifico.vehiculo
         if not vehiculo:
             messagebox.showerror("Error", "Este espacio no tiene un vehículo asignado correctamente.")
             return
         #Se crea la pequeña ventana
         ventanaInfoVehiculo = tk.Toplevel(self.ventana)
-        ventanaInfoVehiculo.title(f"Espacio {parqueoEspecifico["numCampo"]}")
+        ventanaInfoVehiculo.title(f"Espacio {parqueoEspecifico.numCampo}")
         ventanaInfoVehiculo.geometry("280x420") 
         ventanaInfoVehiculo.configure(bg=self.colorFondoCrema)
         #Campo
@@ -431,8 +474,8 @@ class AplicacionParqueo:
                              font=("Arial", 10))
         mensCampo.place(x=25, y=15)
         comboCampo = ttk.Combobox(ventanaInfoVehiculo,
-                                  values=[parqueoEspecifico["numCampo"]])
-        comboCampo.set(parqueoEspecifico["numCampo"])
+                                  values=[parqueoEspecifico.numCampo])
+        comboCampo.set(parqueoEspecifico.numCampo)
         comboCampo.config(state="disabled")
         comboCampo.place(x=25, y=38, width=230) 
         #Placa
@@ -443,7 +486,7 @@ class AplicacionParqueo:
         mensPlaca.place(x=25, y=75)
         entryPlaca = tk.Entry(ventanaInfoVehiculo,
                               font=("Arial", 10))
-        entryPlaca.insert(0, vehiculo.get("placa"))
+        entryPlaca.insert(0, vehiculo.placa) #Se coloca la placa del vehiculo en la caja de texto, y el 0 para que se acomo desde el inicio de la caja de texto
         entryPlaca.config(state="disabled")
         entryPlaca.place(x=25, y=98, width=230)
         #Marca
@@ -454,7 +497,7 @@ class AplicacionParqueo:
         mensMarca.place(x=25, y=135)
         comboMarca = ttk.Combobox(ventanaInfoVehiculo,
                                   font=("Arial", 10))
-        comboMarca.set(vehiculo.get("marca"))
+        comboMarca.set(vehiculo.marca)
         comboMarca.config(state="disabled")
         comboMarca.place(x=25, y=158, width=230)
         #Color
@@ -465,7 +508,7 @@ class AplicacionParqueo:
         mensColor.place(x=25, y=195)
         comboColor = ttk.Combobox(ventanaInfoVehiculo,
                                   font=("Arial", 10))
-        comboColor.set(vehiculo.get("color"))
+        comboColor.set(vehiculo.color)
         comboColor.config(state="disabled")
         comboColor.place(x=25, y=218, width=230)
         #Hora de entrada
@@ -474,7 +517,7 @@ class AplicacionParqueo:
                             bg=self.colorFondoCrema,
                             font=("Arial", 10))
         mensHora.place(x=25, y=255)
-        horaSucia = vehiculo.get("hora de entrada")
+        horaSucia = vehiculo.horaEntrada
         horaFormateada = horaSucia
         try:
             objetoFecha = datetime.strptime(horaSucia, "%Y-%m-%d %H:%M:%S")
@@ -483,7 +526,7 @@ class AplicacionParqueo:
             pass
         entryEntrada = tk.Entry(ventanaInfoVehiculo,
                                 font=("Arial", 10))
-        entryEntrada.insert(0, horaFormateada)
+        entryEntrada.insert(0, horaFormateada)       #Se coloca el hora de entrada del vehiculo en la caja de texto, y el 0 para que se acomo desde el inicio de la caja de texto
         entryEntrada.config(state="disabled")
         entryEntrada.place(x=25, y=278, width=230)
         #Pagar
@@ -494,5 +537,5 @@ class AplicacionParqueo:
                                fg="black", 
                                relief="solid", 
                                bd=1)
-        #Usamos height=2 para hacer mas grande el boton
+        #Usamos height=50 para hacer mas grande el boton
         botonPagar.place(x=25, y=330, width=230, height=50)
