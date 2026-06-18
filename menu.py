@@ -5,13 +5,13 @@
 
 #Importaciones
 import tkinter as tk
-from funciones import AplicacionParqueo
+from funciones import interfazParqueo
 
 if __name__ == "__main__":
     #Creamos la raíz de Tkinter
     ventanaPrincipal = tk.Tk()
     ventanaPrincipal.title("Sistema de Estacionamiento Inteligente - TEC")
     #Instanciamos la clase pasando la raíz (tal como harías con VentanaPrincipal en basarte.py)
-    app = AplicacionParqueo(ventanaPrincipal)
+    app = interfazParqueo(ventanaPrincipal)
     #Corremos el ciclo principal de eventos
     ventanaPrincipal.mainloop()
