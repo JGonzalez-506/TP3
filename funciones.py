@@ -712,102 +712,132 @@ class interfazParqueo:
         self.mostrarEspaciosPaginaActual()
 
     def clickEspacio(self, parqueoEspecifico):
-        if parqueoEspecifico.libre:
-            print("Espacio Libre")
+        esLibre = parqueoEspecifico.libre
+
+        # Listas de opciones requeridas
+        listaMarcas = ["Toyota", "Hyundai", "Nissan", "Suzuki", "Honda", "Mitsubishi", "Kia", "Ford", "Chevrolet",
+                       "Mazda", "Isuzu", "BYD", "Geely", "BMW", "Volkswagen"]
+        listaColores = ["Blanco", "Negro", "Gris", "Plata", "Rojo", "Azul", "Verde", "Dorado", "Beige", "Bronce"]
+        listaTipos = ["Sedan", "SUV", "Pick-up", "Hatchback", "Microbus"]
+
+        if esLibre:
             placa = ""
             marca = ""
             color = ""
             tipo = ""
-            ubicacion, horaEntrada, horaSalida = "", "", ""
-            monto, tipoPago = 0, ""
+            # Se toma la hora exacta del sistema al momento de abrir el espacio
+            horaEntradaInterna = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            horaFormateada = datetime.now().strftime("%d/%m/%y %H:%M:%S")
+            textoBoton = "Estacionar"
         else:
             placa, marca, color, tipo = parqueoEspecifico.info
-            ubicacion, horaEntrada, horaSalida = parqueoEspecifico.estadia
+            ubicacion, horaEntradaInterna, horaSalida = parqueoEspecifico.estadia
             monto, tipoPago = parqueoEspecifico.pago
-            # Se crea la pequeña ventana
-            ventanaInfoVehiculo = tk.Toplevel(self.venParqueo)
-            ventanaInfoVehiculo.title(f"Espacio {parqueoEspecifico.id}")
-            ventanaInfoVehiculo.geometry("280x420")
-            ventanaInfoVehiculo.configure(bg=self.colorFondoCrema)
-            # Campo
-            mensCampo = tk.Label(ventanaInfoVehiculo,
-                                 text="Campo:",
-                                 bg=self.colorFondoCrema,
-                                 font=("Arial", 10))
-            mensCampo.place(x=25, y=15)
-            comboCampo = ttk.Combobox(ventanaInfoVehiculo,
-                                      values=[parqueoEspecifico.id])
-            comboCampo.set(parqueoEspecifico.id)
-            comboCampo.config(state="disabled")
-            comboCampo.place(x=25, y=38, width=230)
-            # Placa
-            mensPlaca = tk.Label(ventanaInfoVehiculo,
-                                 text="Placa:",
-                                 bg=self.colorFondoCrema,
-                                 font=("Arial", 10))
-            mensPlaca.place(x=25, y=75)
-            entryPlaca = tk.Entry(ventanaInfoVehiculo,
-                                  font=("Arial", 10))
-            entryPlaca.insert(0, placa)  # Se coloca la placa del vehiculo en la caja de texto, y el 0 para que se acomo desde el inicio de la caja de texto
-            entryPlaca.config(state="disabled")
-            entryPlaca.place(x=25, y=98, width=230)
-            # Marca
-            mensMarca = tk.Label(ventanaInfoVehiculo,
-                                 text="Marca:",
-                                 bg=self.colorFondoCrema,
-                                 font=("Arial", 10))
-            mensMarca.place(x=25, y=135)
-            comboMarca = ttk.Combobox(ventanaInfoVehiculo,
-                                      font=("Arial", 10))
-            comboMarca.set(marca)
-            comboMarca.config(state="disabled")
-            comboMarca.place(x=25, y=158, width=230)
-            # Color
-            mensColor = tk.Label(ventanaInfoVehiculo,
-                                 text="Color:",
-                                 bg=self.colorFondoCrema,
-                                 font=("Arial", 10))
-            mensColor.place(x=25, y=195)
-            comboColor = ttk.Combobox(ventanaInfoVehiculo,
-                                      font=("Arial", 10))
-            comboColor.set(color)
-            comboColor.config(state="disabled")
-            comboColor.place(x=25, y=218, width=230)
-            # Hora de entrada
-            mensHora = tk.Label(ventanaInfoVehiculo,
-                                text="Hora de entrada:",
-                                bg=self.colorFondoCrema,
-                                font=("Arial", 10))
-            mensHora.place(x=25, y=255)
-            horaSucia = horaEntrada
-            horaFormateada = horaSucia
+            horaFormateada = horaEntradaInterna
             try:
-                objetoFecha = datetime.strptime(horaSucia, "%Y-%m-%d %H:%M:%S")
+                objetoFecha = datetime.strptime(horaEntradaInterna, "%Y-%m-%d %H:%M:%S")
                 horaFormateada = objetoFecha.strftime("%d/%m/%y %H:%M:%S")
             except:
                 pass
-            entryEntrada = tk.Entry(ventanaInfoVehiculo,
-                                    font=("Arial", 10))
-            entryEntrada.insert(0, horaFormateada)  # Se coloca el hora de entrada del vehiculo en la caja de texto, y el 0 para que se acomo desde el inicio de la caja de texto
+            textoBoton = "Pagar"
 
-            entryEntrada.config(state="disabled")
-            entryEntrada.place(x=25, y=278, width=230)
-            # Pagar
-            botonPagar = tk.Button(ventanaInfoVehiculo,
-                                   text="Pagar",
-                                   font=("Arial", 10, "bold"),
-                                   bg="#A6B9CB",
-                                   fg="black",
-                                   relief="solid",
-                                   bd=1)
-            # Usamos height=50 para hacer mas grande el boton
-            botonPagar.place(x=25, y=330, width=230, height=50)
+        # Se crea la pequeña ventana (Altura ajustada a 480 para soportar el campo "Tipo")
+        ventanaInfoVehiculo = tk.Toplevel(self.venParqueo)
+        ventanaInfoVehiculo.title(f"Espacio {parqueoEspecifico.id}")
+        ventanaInfoVehiculo.geometry("280x480")
+        ventanaInfoVehiculo.configure(bg=self.colorFondoCrema)
 
-            if parqueoEspecifico.libre:
-                botonPagar.config(state="disabled")
-            else:
-                botonPagar.config(state="normal",
-                                  command=lambda: self.abrirVentanaPago(parqueoEspecifico, ventanaInfoVehiculo))
+        # Estado dinámico: "normal"/"readonly" para escribir/seleccionar si está libre, "disabled" si está ocupado
+        estadoCampos = "normal" if esLibre else "disabled"
+        estadoComboBox = "readonly" if esLibre else "disabled"
+
+        # Campo
+        tk.Label(ventanaInfoVehiculo,
+                 text="Campo:",
+                 bg=self.colorFondoCrema,
+                 font=("Arial", 10)).place(x=25, y=15)
+        comboCampo = ttk.Combobox(ventanaInfoVehiculo,
+                                  values=[parqueoEspecifico.id])
+        comboCampo.set(parqueoEspecifico.id)
+        comboCampo.config(state="disabled")
+        comboCampo.place(x=25, y=38, width=230)
+
+        # Placa
+        tk.Label(ventanaInfoVehiculo,
+                 text="Placa:",
+                 bg=self.colorFondoCrema,
+                 font=("Arial", 10)).place(x=25, y=75)
+        entryPlaca = tk.Entry(ventanaInfoVehiculo,
+                              font=("Arial", 10))
+        entryPlaca.insert(0, placa)
+        entryPlaca.config(state=estadoCampos)
+        entryPlaca.place(x=25, y=98, width=230)
+
+        # Marca
+        tk.Label(ventanaInfoVehiculo,
+                 text="Marca:",
+                 bg=self.colorFondoCrema,
+                 font=("Arial", 10)).place(x=25, y=135)
+        comboMarca = ttk.Combobox(ventanaInfoVehiculo,
+                                  values=listaMarcas,
+                                  font=("Arial", 10),
+                                  state=estadoComboBox)
+        if marca: comboMarca.set(marca)
+        comboMarca.place(x=25, y=158, width=230)
+
+        # Color
+        tk.Label(ventanaInfoVehiculo,
+                 text="Color:",
+                 bg=self.colorFondoCrema,
+                 font=("Arial", 10)).place(x=25, y=195)
+        comboColor = ttk.Combobox(ventanaInfoVehiculo,
+                                  values=listaColores,
+                                  font=("Arial", 10),
+                                  state=estadoComboBox)
+        if color: comboColor.set(color)
+        comboColor.place(x=25, y=218, width=230)
+
+        # Tipo
+        tk.Label(ventanaInfoVehiculo,
+                 text="Tipo:",
+                 bg=self.colorFondoCrema,
+                 font=("Arial", 10)).place(x=25, y=255)
+        comboTipo = ttk.Combobox(ventanaInfoVehiculo,
+                                 values=listaTipos,
+                                 font=("Arial", 10),
+                                 state=estadoComboBox)
+        if tipo: comboTipo.set(tipo)
+        comboTipo.place(x=25, y=278, width=230)
+
+        # Hora de entrada (Solo lectura, se llena automático del sistema)
+        tk.Label(ventanaInfoVehiculo,
+                 text="Hora de entrada:",
+                 bg=self.colorFondoCrema,
+                 font=("Arial", 10)).place(x=25,
+                                                                                                                  y=315)
+        entryEntrada = tk.Entry(ventanaInfoVehiculo,
+                                font=("Arial", 10))
+        entryEntrada.insert(0, horaFormateada)
+        entryEntrada.config(state="disabled")
+        entryEntrada.place(x=25, y=338, width=230)
+
+        # Botón dinámico: Cambia entre "Estacionar" y "Pagar"
+        botonAccion = tk.Button(ventanaInfoVehiculo,
+                                text=textoBoton,
+                                font=("Arial", 10, "bold"),
+                                bg="#A6B9CB",
+                                fg="black",
+                                relief="solid",
+                                bd=1)
+        botonAccion.place(x=25, y=390, width=230, height=50)
+
+        # Asignación de funciones según el estado
+        if esLibre:
+            botonAccion.config(command=lambda: self.procesarEstacionamiento(
+                parqueoEspecifico, entryPlaca.get(), comboMarca.get(), comboColor.get(), comboTipo.get(),
+                horaEntradaInterna, ventanaInfoVehiculo))
+        else:
+            botonAccion.config(command=lambda: self.abrirVentanaPago(parqueoEspecifico, ventanaInfoVehiculo))
 
     def abrirVentanaPago(self, parqueoEspecifico, ventanaInfoVehiculo):
         horaEntrada = parqueoEspecifico.estadia[1]
@@ -926,3 +956,25 @@ class interfazParqueo:
         except Exception as e:
             messagebox.showerror("Error", f"No se pudo estructurar el PDF: {str(e)}")
             return False
+
+    def procesarEstacionamiento(self, parqueoEspecifico, placa, marca, color, tipo, horaEntrada, ventanaInfoVehiculo):
+        if not placa.strip() or not marca or not color or not tipo:
+            messagebox.showwarning("Campos Incompletos",
+                                   "Por favor, complete todos los campos requeridos.")
+            return
+        # Modifica el estado del espacio
+        parqueoEspecifico.libre = False
+        parqueoEspecifico.info = (placa, marca, color, tipo)
+        parqueoEspecifico.estadia = [parqueoEspecifico.id, horaEntrada, ""]
+        parqueoEspecifico.pago = (0, 0)
+        # Actualiza la base de datos
+        try:
+            with open("bdParqueo.txt", "wb") as archivoBinario:
+                pickle.dump(self.baseDatosParqueos, archivoBinario)
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al guardar la base de datos de manera binaria: {e}")
+            return
+        # Redibuja la cuadrícula en tiempo real y cierra la ventana
+        self.mostrarEspaciosPaginaActual()
+        messagebox.showinfo("Éxito", f"El vehículo placa {placa} ha sido estacionado.\nVoucher PDF generado.")
+        ventanaInfoVehiculo.destroy()
