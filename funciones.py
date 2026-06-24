@@ -16,6 +16,8 @@ from tkinter import ttk
 import qrcode
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+import xml.etree.ElementTree as generadorXML
+from xml.dom import minidom
 
 class vehiculo:
     def __init__(self, datosDict):
@@ -166,7 +168,7 @@ class interfazParqueo:
         self.botonReportes = tk.Button(self.ventana,
                                        text="Reportes",
                                        font=fuenteBoton,
-                                       command=lambda: print(f"opción 5"))
+                                       command=self.abrirVentanaReportes)
         self.botonReportes.pack(anchor="w", padx=margenIzquierdo, pady=8)
         self.botonConfig = tk.Button(self.ventana,
                                      text="Configuración",
@@ -856,17 +858,17 @@ class interfazParqueo:
             diccionarioPagos = {"Efectivo": 1, "SINPE": 2, "Tarjeta": 3}
             idPago = diccionarioPagos[comboTipoPago.get()]
             placa, marca, color, tipoVehiculo = parqueoEspecifico.info
-            fEntrada = objetoEntrada.strftime("%d-%m-%Y %H:%M:%S")
-            fSalida = objetoSalida.strftime("%d-%m-%Y %H:%M:%S")
+            fechaEntrada = objetoEntrada.strftime("%d-%m-%Y %H:%M:%S")
+            fechaSalida = objetoSalida.strftime("%d-%m-%Y %H:%M:%S")
             # Intentar generar el PDF de la factura
-            exitoPDF = self.crearFacturaPDF(parqueoEspecifico.id, placa, marca, color, fEntrada, fSalida, montoFinal, idPago)
+            exitoPDF = self.crearFacturaPDF(parqueoEspecifico.id, placa, marca, color, fechaEntrada, fechaSalida, montoFinal, idPago)
             if exitoPDF:
                 # Modificar el estado del espacio para liberarlo
                 parqueoEspecifico.libre = True
-                parqueoEspecifico.info = ("", "", "", "")
-                parqueoEspecifico.estadia = [parqueoEspecifico.id, "", ""]
+                parqueoEspecifico.info = (placa, marca, color, tipoVehiculo)
+                parqueoEspecifico.estadia = [parqueoEspecifico.id, horaEntrada, fechaSalida]
                 parqueoEspecifico.pago = (montoFinal, idPago)
-                # Actualizar la base de datos binaria (.txt con pickle)
+                # Actualizar la base de datos binaria
                 try:
                     with open("bdParqueo.txt", "wb") as archivoBinario:
                         pickle.dump(self.baseDatosParqueos, archivoBinario)
@@ -885,13 +887,13 @@ class interfazParqueo:
         botonFinalizarPago.pack(pady=15)
 
     def crearFacturaPDF(self, idCampo, placa, marca, color, fechaEntrada, fechaSalida, monto, idPago):
-        # Formato solicitado: factura_#PLACA_DD-MM-AAAA_HH:mm.pdf
-        # Nota técnica: Windows prohíbe el carácter ':' en los nombres de archivos. 
-        # Reemplazamos los dos puntos de la hora por guiones bajos SOLO en el nombre del archivo para evitar crash.
+        # El nombre del voucher saldra con este formato: voucher_#PLACA_DD-MM-AAAA_HH:mm.pdf
+        # En windows no se puede usar los ':' en los nombres de archivos. 
+        # Reemplazamos los dos puntos de la hora por guiones bajos SOLO en el nombre del archivo para evitar ese problema.
         fechaParaNombre = fechaSalida.replace(":", "-").replace(" ", "_")
         nombreFactura = f"factura_{placa}_{fechaParaNombre}.pdf"
         diccTipoPago = {1: "Efectivo", 2: "SINPE", 3: "Tarjeta"}
-        textoPagoMostrar = diccTipoPago.get(idPago, "Desconocido")
+        textoPagoMostrar = diccTipoPago.get(idPago)
         # Contenido codificado del QR
         infoQR = (f"Campo: {idCampo}\n"
                   f"Placa: {placa}\n"
@@ -901,13 +903,13 @@ class interfazParqueo:
                   f"Monto: ₡{monto}")
         # Generación del archivo QR temporal
         imgQR = qrcode.make(infoQR)
-        rutaQR = f"temp_qr_{placa}.png"
+        rutaQR = f"QRtemporal_{placa}.png"
         imgQR.save(rutaQR)
         try:
             # Creación del lienzo PDF
-            c = canvas.Canvas(nombreFactura, pagesize=letter)
+            cavasPdf = canvas.Canvas(nombreFactura, pagesize=letter)
             # Título del documento
-            c.drawString(50, 695, "COMPROBANTE DE COMPRA - ESTACIONAMIENTO")
+            cavasPdf.drawString(50, 695, "COMPROBANTE DE COMPRA - ESTACIONAMIENTO")
             # Estructuración de datos de estadía completos
             ejeY = 660
             lineasTexto = [f"Número de Campo: {idCampo}",
@@ -919,15 +921,128 @@ class interfazParqueo:
                            f"Identificador de Pago: {textoPagoMostrar}",
                            f"Monto Total Cobrado: ₡{monto}"]
             for linea in lineasTexto:
-                c.drawString(50, ejeY, linea)
+                cavasPdf.drawString(50, ejeY, linea)
                 ejeY -= 20
             # Dibujar el código QR
             ejeY -= 140
-            c.setFont("Helvetica-Bold", 11)
-            c.drawString(50, ejeY + 125, "Código QR de Verificación:")
-            c.drawImage(rutaQR, 50, ejeY, width=110, height=110)
-            c.save()
+            cavasPdf.setFont("Helvetica-Bold", 11)
+            cavasPdf.drawString(50, ejeY + 125, "Código QR de Verificación:")
+            cavasPdf.drawImage(rutaQR, 50, ejeY, width=110, height=110)
+            cavasPdf.save()
             return True
-        except Exception as e:
-            messagebox.showerror("Error", f"No se pudo estructurar el PDF: {str(e)}")
+        except:
+            messagebox.showerror("Error", f"No se pudo estructurar el PDF")
             return False
+
+    def abrirVentanaReportes(self):
+        # Se esconde el menú principal temporalmente siguiendo tu estándar de diseño
+        self.ventana.withdraw()
+        # Crea la ventana secundaria de reportes
+        self.venReportes = tk.Toplevel(self.ventana)
+        self.venReportes.title("Menú de Reportes")
+        self.dimensionarVentana(self.venReportes, 480, 340)
+        self.venReportes.configure(bg=self.colorFondoCrema)
+        labelTitulo = tk.Label(self.venReportes,
+                               text="Reportes del Sistema",
+                               font=("Arial", 16),
+                               bg=self.colorFondoCrema,
+                               fg=self.colorTexto)
+        labelTitulo.pack(pady=20)
+        # Botón A: Cierre diario y facturación en masa (Deshabilitado de momento)
+        btnCierreMasa = tk.Button(self.venReportes,
+                                  text="Cierre diario y facturación en masa",
+                                  font=("Arial", 11),
+                                  width=35)
+                                  #command=lambda:)
+        btnCierreMasa.pack(pady=6)
+        # Botón B: Cierre por tipo de pago (Llama a la lógica XML solicitada)
+        btnCierreTipo = tk.Button(self.venReportes,
+                                  text="Cierre por tipo de pago",
+                                  font=("Arial", 11),
+                                  command=self.generarCierrePorTipoPago)
+        btnCierreTipo.pack(pady=6)
+        # Botón C: Exportar cierre diario a CSV (Deshabilitado de momento)
+        btnExportarCSV = tk.Button(self.venReportes,
+                                   text="Exportar cierre diario a CSV",
+                                   font=("Arial", 11))
+                                   #command=lambda:)
+        btnExportarCSV.pack(pady=6)
+        # Botón de escape para volver al menú principal
+        btnRegresar = tk.Button(self.venReportes,
+                                text="Regresar",
+                                font=("Arial", 11),
+                                command=lambda: self.cerrarVentanaSecundariaYRegresar(self.venReportes))
+        btnRegresar.pack(pady=20)
+
+    def generarCierrePorTipoPago(self):
+        # Listas de filtración local
+        pagosEfectivo = []
+        pagosSinpe = []
+        pagosTarjeta = []
+        # Se clasifica cada espacio según el número de pago (1 = Efectivo, 2 = SINPE, 3 = Tarjeta)
+        for parqueo in self.baseDatosParqueos:
+            monto, idPago = parqueo.pago
+            if idPago == 1:
+                pagosEfectivo.append(parqueo)
+            elif idPago == 2:
+                pagosSinpe.append(parqueo)
+            elif idPago == 3:
+                pagosTarjeta.append(parqueo)
+        # Si no se cuenta con ningún registro de los 3 tipos
+        if not pagosEfectivo and not pagosSinpe and not pagosTarjeta:
+            messagebox.showerror("Error", "No se ha podido realizar el reporte ya que no se cuentan con pagos de ningún tipo.")
+            return
+        # Se generan los subelementos para el XML
+        cierrePorTipoPago = generadorXML.Element("CierrePorTipoPago")
+        seccionEfectivo = generadorXML.SubElement(cierrePorTipoPago, "efectivo")
+        seccionSinpe = generadorXML.SubElement(cierrePorTipoPago, "sinpe")
+        seccionTarjeta = generadorXML.SubElement(cierrePorTipoPago, "tarjeta")
+        # Se insertan los registros ya planos en sus ramas
+        self.registrarAtributosPlanos(pagosEfectivo, seccionEfectivo)
+        self.registrarAtributosPlanos(pagosSinpe, seccionSinpe)
+        self.registrarAtributosPlanos(pagosTarjeta, seccionTarjeta)
+        # Se le da un faorma y almacenamiento legible (Pretty Print)
+        xmlBruto = generadorXML.tostring(cierrePorTipoPago, encoding="utf-8")
+        xmlParseado = minidom.parseString(xmlBruto)
+        xmlFormateado = xmlParseado.toprettyxml(indent="  ")
+        horaActual = datetime.now().strftime("%H-%M-%S")
+        nombreReportePorPago = f"cierre_por_tipo_pago_{horaActual}.xml"
+        try:
+            with open(nombreReportePorPago, "w") as archivoXml:
+                archivoXml.write(xmlFormateado)
+        except:
+            messagebox.showerror("Error de Escritura", f"No se pudo guardar el archivo XML")
+            return
+        # Se mostrara un message box dependiendo de si hay registros de pago en cierto tipos de pago
+        tiposDetectados = []
+        if pagosEfectivo: 
+            tiposDetectados.append("efectivo")
+        if pagosSinpe: 
+            tiposDetectados.append("SINPE")
+        if pagosTarjeta: 
+            tiposDetectados.append("Tarjeta")
+        if len(tiposDetectados) == 1:
+            mensajeAlerta = f"Se ha generado el reporte, solo que cuenta con pagos en {tiposDetectados[0]}."
+        elif len(tiposDetectados) == 2:
+            mensajeAlerta = f"Se ha generado el reporte, lo que se cuenta con pagos en {tiposDetectados[0]} y {tiposDetectados[1]}."
+        else:
+            mensajeAlerta = "Se ha generado el reporte con éxito, cuenta con pagos en efectivo, SINPE y Tarjeta."
+        messagebox.showinfo("Reporte Generado", mensajeAlerta)
+
+    def registrarAtributosPlanos(self, listaEspaciosPagados, elementoXmlPadre):
+        # Metodo auxiliar para plasmar los datos de forma plana en el XML
+        for espacioPagado in listaEspaciosPagados:
+            placa, marca, color, tipoVehiculo = espacioPagado.info
+            numCampo, horaEntrada, horaSalida = espacioPagado.estadia
+            monto, idPago = espacioPagado.pago
+            # Cada subelemento contiene la información total mapeada en un solo nivel plano
+            generadorXML.SubElement(elementoXmlPadre, "pago", {"numCampo": str(espacioPagado.id),
+                                                               "tipoEspacio": str(espacioPagado.tipoEspacio),
+                                                               "placa": str(placa),
+                                                               "marca": str(marca),
+                                                               "color": str(color),
+                                                               "tipoVehiculo": str(tipoVehiculo),
+                                                               "horaEntrada": str(horaEntrada),
+                                                               "horaSalida": str(horaSalida),
+                                                               "monto": str(monto),
+                                                               "idPago": str(idPago)})
