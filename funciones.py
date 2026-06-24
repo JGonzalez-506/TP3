@@ -4,6 +4,7 @@
 # Version: 3.14.3
 
 # importaciones
+import re
 import tkinter as tk
 from tkinter import messagebox
 import pickle
@@ -962,6 +963,17 @@ class interfazParqueo:
             messagebox.showwarning("Campos Incompletos",
                                    "Por favor, complete todos los campos requeridos.")
             return
+        placa = placa.strip()
+        patronPlaca = r"^[A-Z]{3}\d{3}|\d{6}$"
+        if not re.match(patronPlaca, placa):
+            messagebox.showerror(
+                "Formato de Placa Inválido",
+                "La placa ingresada no cuenta con un formato permitido.\n\n"
+                "Formatos válidos:\n"
+                "- 3 letras mayúsculas y 3 números (Ej: ABC123)\n"
+                "- 6 números exactos (Ej: 123456)"
+            )
+            return  # Este return es vital para detener el proceso y no dejar que avance
         # Modifica el estado del espacio
         parqueoEspecifico.libre = False
         parqueoEspecifico.info = (placa, marca, color, tipo)
