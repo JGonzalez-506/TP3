@@ -974,7 +974,39 @@ class interfazParqueo:
         except Exception as e:
             messagebox.showerror("Error", f"Error al guardar la base de datos de manera binaria: {e}")
             return
+        # Genera el PDF del Voucher de entrada
+        self.crearVoucherPDF(placa, marca, tipo, horaEntrada)
         # Redibuja la cuadrícula en tiempo real y cierra la ventana
         self.mostrarEspaciosPaginaActual()
         messagebox.showinfo("Éxito", f"El vehículo placa {placa} ha sido estacionado.\nVoucher PDF generado.")
         ventanaInfoVehiculo.destroy()
+
+    def crearVoucherPDF(self, placa, marca, tipo, horaEntrada):
+        try:
+            # Formateo de fecha
+            objetoFecha = datetime.strptime(horaEntrada, "%Y-%m-%d %H:%M:%S")
+            fechaNombre = objetoFecha.strftime("%d-%m-%Y_%H-%M")
+            nombreVoucher = f"voucher#{placa}_{fechaNombre}.pdf"
+            # Información exclusiva del QR (Placa-Marca-Tipo-FechaHoraEntrada)
+            infoQR = f"{placa}-{marca}-{tipo}-{horaEntrada}"
+            # Generación del QR temporal
+            imgQR = qrcode.make(infoQR)
+            rutaQR = f"tempQRingreso{placa}.png"
+            imgQR.save(rutaQR)
+            # Creación del PDF
+            c = canvas.Canvas(nombreVoucher, pagesize=letter)
+
+            c.drawString(50, 695, "VOUCHER DE INGRESO - ESTACIONAMIENTO")
+            c.drawString(50, 660, f"Placa del Vehículo: {placa}")
+            c.drawString(50, 640, f"Marca: {marca}")
+            c.drawString(50, 620, f"Tipo de Vehículo: {tipo}")
+            c.drawString(50, 600, f"Fecha y Hora de Entrada: {horaEntrada}")
+
+            # Dibujar el código QR
+            c.setFont("Helvetica-Bold", 11)
+            c.drawString(50, 560, "Código QR de Verificación:")
+            c.drawImage(rutaQR, 50, 440, width=110, height=110)
+
+            c.save()
+        except Exception as e:
+            print(f"Error al estructurar el PDF del Voucher: {e}")
