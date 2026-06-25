@@ -987,38 +987,51 @@ class interfazParqueo:
             messagebox.showerror("Error", f"Error al guardar la base de datos de manera binaria: {e}")
             return
         # Genera el PDF del Voucher de entrada
-        self.crearVoucherPDF(placa, marca, tipo, horaEntrada)
+        self.crearVoucherPDF(parqueoEspecifico.id, placa, marca, color, tipo, horaEntrada)
         # Redibuja la cuadrícula en tiempo real y cierra la ventana
         self.mostrarEspaciosPaginaActual()
         messagebox.showinfo("Éxito", f"El vehículo placa {placa} ha sido estacionado.\nVoucher PDF generado.")
         ventanaInfoVehiculo.destroy()
 
-    def crearVoucherPDF(self, placa, marca, tipo, horaEntrada):
+    def crearVoucherPDF(self, idCampo, placa, marca, color, tipo, horaEntrada):
         try:
-            # Formateo de fecha
+            #Formateo de fecha
             objetoFecha = datetime.strptime(horaEntrada, "%Y-%m-%d %H:%M:%S")
             fechaNombre = objetoFecha.strftime("%d-%m-%Y_%H-%M")
             nombreVoucher = f"voucher#{placa}_{fechaNombre}.pdf"
-            # Información exclusiva del QR (Placa-Marca-Tipo-FechaHoraEntrada)
-            infoQR = f"{placa}-{marca}-{tipo}-{horaEntrada}"
-            # Generación del QR temporal
-            imgQR = qrcode.make(infoQR)
-            rutaQR = f"tempQRingreso{placa}.png"
+
+            #Información del QR actualizada incluyendo todos los campos
+            infoQR = f"{idCampo}-{placa}-{marca}-{color}-{tipo}-{horaEntrada}"
+
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(infoQR)
+            qr.make(fit=True)
+            #Generación y guardado del archivo QR temporal
+            imgQR = qr.make_image(fill_color="black", back_color="white")
+            rutaQR = f"tempQRingreso_{placa}.png"
             imgQR.save(rutaQR)
-            # Creación del PDF
             c = canvas.Canvas(nombreVoucher, pagesize=letter)
-
-            c.drawString(50, 695, "VOUCHER DE INGRESO - ESTACIONAMIENTO")
-            c.drawString(50, 660, f"Placa del Vehículo: {placa}")
-            c.drawString(50, 640, f"Marca: {marca}")
-            c.drawString(50, 620, f"Tipo de Vehículo: {tipo}")
-            c.drawString(50, 600, f"Fecha y Hora de Entrada: {horaEntrada}")
-
-            # Dibujar el código QR
+            c.setFont("Helvetica-Bold", 14)
+            c.drawString(50, 720, "VOUCHER DE INGRESO - ESTACIONAMIENTO")
+            #Datos completos
+            c.setFont("Helvetica", 11)
+            c.drawString(50, 680, f"Número de Campo: {idCampo}")
+            c.drawString(50, 655, f"Placa del Vehículo: {placa}")
+            c.drawString(50, 630, f"Marca: {marca}")
+            c.drawString(50, 605, f"Color: {color}")
+            c.drawString(50, 580, f"Tipo de Vehículo: {tipo}")
+            c.drawString(50, 555, f"Fecha y Hora de Entrada: {horaEntrada}")
+            #Sección del QR de Verificación
             c.setFont("Helvetica-Bold", 11)
-            c.drawString(50, 560, "Código QR de Verificación:")
-            c.drawImage(rutaQR, 50, 440, width=110, height=110)
-
+            c.drawString(50, 510, "Código QR de Verificación:")
+            c.drawImage(rutaQR, 50, 380, width=110, height=110)
+            #Guardar el documento PDF finalizado
             c.save()
+
         except Exception as e:
             print(f"Error al estructurar el PDF del Voucher: {e}")
