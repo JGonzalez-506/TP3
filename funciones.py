@@ -367,6 +367,8 @@ class interfazParqueo:
                     pagoEspacio = pagoEspacio,
                     tipoEspacio = "discapacidad",
                     libre = True))
+                if placa:  # Verifica que el espacio sí recibió un vehículo para crear un voucher
+                    self.crearVoucherPDF(numCampo, placa, marca, color, tipo, horaEntrada)
                 campoActual += 1
             # Si el usuario confimara que quiere un espacio para un vehiculo electrico, se crea y se asignan los datos del vehiculo y el numero de campo que ocupara el espacio
             if incluyeElectrico:
@@ -390,6 +392,8 @@ class interfazParqueo:
                     pagoEspacio = pagoEstadia,
                     tipoEspacio = "electrico",
                     libre=True))
+                if placa:  # Verifica que el espacio sí recibió un vehículo para crear un voucher
+                    self.crearVoucherPDF(numCampo, placa, marca, color, tipo, horaEntrada)
                 campoActual += 1
             # Se calculan cuantos espacios normales quedaran ocupados y cuantos quedaran libres, acomodandolos de manera aleatoria
             espaciosRestantes = cantidad - cantDiscapacidad - cantElectrico
@@ -416,6 +420,7 @@ class interfazParqueo:
                         placaVehiculo += 1
                     infoVehiculo = (placa, marca, color, tipo)
                     estadiaEspacio = [numCampo, horaEntrada, ""]
+                    self.crearVoucherPDF(numCampo, placa, marca, color, tipo, horaEntrada)
                 else:
                     # Si está libre, van vacíos
                     infoVehiculo = ("", "", "", "")
