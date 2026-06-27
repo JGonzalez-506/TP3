@@ -105,9 +105,24 @@ class interfazParqueo:
                 if isinstance(listaCargada, list) and len(listaCargada) > 0:
                     self.baseDatosParqueos = listaCargada
                     self.totalParqueos = len(listaCargada)
+                    vouchersCreados = 0
+                    for parqueo in self.baseDatosParqueos:
+                        if not parqueo.libre:
+                            idCampo = parqueo.id
+                            placa, marca, color, tipo = parqueo.info
+                            horaEntrada = parqueo.estadia[1]
+                            self.crearVoucherPDF(idCampo, placa, marca, color, tipo, horaEntrada)
+                            vouchersCreados += 1
+                    if vouchersCreados > 0:
+                        messagebox.showinfo(
+                            "Creación Vouchers",
+                            f"Se han generado {vouchersCreados} vouchers correspondientes a los vehículos encontrados en la base de datos.")
                     return True
         except:
-            pass
+            messagebox.showwarning(
+                "Atención",
+                "No se ha encontrado base de datos previa, por favor ingrese a la configuración."
+            )
         return False
 
     def guardarDatosParqueo(self, cantidad, nombreArchivo):
@@ -145,7 +160,7 @@ class interfazParqueo:
         self.botonObtener = tk.Button(self.ventana,
                                       text="Obtener vehículos y vouchers",
                                       font=fuenteBoton,
-                                      command=lambda: print(f"opción 1"))
+                                      command= self.generarVouchersMasivos)
         self.botonObtener.pack(anchor="w", padx=margenIzquierdo, pady=8)
         self.botonVer = tk.Button(self.ventana,
                                   text="Ver estacionamiento",
@@ -333,6 +348,7 @@ class interfazParqueo:
                                             "monto": 0,
                                             "tipoPago": 0}
             print(json.dumps(diccionarioMasivo, indent=4, ensure_ascii=False))
+            vouchersGeneradosAPI = 0
             placaVehiculo = 0
             cantDiscapacidad = math.ceil(cantidad * 0.05)  # Se redondea hacia arriba el 5% de los espacios para discapacitados para que no queden en decimales
             if cantDiscapacidad < 2:
@@ -369,6 +385,7 @@ class interfazParqueo:
                     libre = True))
                 if placa:  # Verifica que el espacio sí recibió un vehículo para crear un voucher
                     self.crearVoucherPDF(numCampo, placa, marca, color, tipo, horaEntrada)
+                    vouchersGeneradosAPI += 1
                 campoActual += 1
             # Si el usuario confimara que quiere un espacio para un vehiculo electrico, se crea y se asignan los datos del vehiculo y el numero de campo que ocupara el espacio
             if incluyeElectrico:
@@ -394,6 +411,7 @@ class interfazParqueo:
                     libre=True))
                 if placa:  # Verifica que el espacio sí recibió un vehículo para crear un voucher
                     self.crearVoucherPDF(numCampo, placa, marca, color, tipo, horaEntrada)
+                    vouchersGeneradosAPI += 1
                 campoActual += 1
             # Se calculan cuantos espacios normales quedaran ocupados y cuantos quedaran libres, acomodandolos de manera aleatoria
             espaciosRestantes = cantidad - cantDiscapacidad - cantElectrico
@@ -421,6 +439,7 @@ class interfazParqueo:
                     infoVehiculo = (placa, marca, color, tipo)
                     estadiaEspacio = [numCampo, horaEntrada, ""]
                     self.crearVoucherPDF(numCampo, placa, marca, color, tipo, horaEntrada)
+                    vouchersGeneradosAPI += 1
                 else:
                     # Si está libre, van vacíos
                     infoVehiculo = ("", "", "", "")
@@ -456,7 +475,8 @@ class interfazParqueo:
             # Se destruye la ventana de configuración, se regresa al menú y se notifica el éxito
             self.venConfig.destroy()
             self.ventana.deiconify()
-            messagebox.showinfo("Éxito", "Base de datos generada y configuración inicial guardada.")
+            messagebox.showinfo("Éxito", "Base de datos generada y configuración inicial guardada.\n\n"
+                                f"Se han generando {vouchersGeneradosAPI} vouchers de ingreso.")
         else:
             messagebox.showwarning("Rango Incorrecto", "La cantidad debe estar entre 1 y 75 espacios.")
 
@@ -1040,3 +1060,60 @@ class interfazParqueo:
 
         except Exception as e:
             print(f"Error al estructurar el PDF del Voucher: {e}")
+
+    def generarVouchersMasivos(self):
+        if not self.hayBaseDatos or not self.baseDatosParqueos:
+            messagebox.showwarning("Aviso", "No hay una base de datos activa en el sistema.")
+            return
+        vehiculosOcupados = [parqueo for parqueo in self.baseDatosParqueos if not parqueo.libre]
+        if not vehiculosOcupados:
+            messagebox.showinfo("Aviso", "No hay vehículos estacionados en este momento en el parqueo.")
+            return
+        fechaNombre = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+        nombreReporte = f"ReporteCompletoVouchers{fechaNombre}.pdf"
+
+        try:
+            c = canvas.Canvas(nombreReporte, pagesize=letter)
+            rutasQRTemporales = []
+
+            for parqueo in vehiculosOcupados:
+                idCampo = parqueo.id
+                placa, marca, color, tipo = parqueo.info
+                horaEntrada = parqueo.estadia[1]
+
+                infoQR = f"{idCampo}-{placa}-{marca}-{color}-{tipo}-{horaEntrada}"
+                qr = qrcode.QRCode(
+                    version=1,
+                    error_correction=qrcode.constants.ERROR_CORRECT_L,
+                    box_size=10,
+                    border=4,
+                )
+                qr.add_data(infoQR)
+                qr.make(fit=True)
+
+                imgQR = qr.make_image(fill_color="black", back_color="white")
+                rutaQR = f"tempQR_masivo_{placa}.png"
+                imgQR.save(rutaQR)
+                rutasQRTemporales.append(rutaQR)
+                c.setFont("Helvetica-Bold", 14)
+                c.drawString(50, 720, "VOUCHER DE INGRESO - ESTACIONAMIENTO")
+                #Datos completos del vehículo
+                c.setFont("Helvetica", 11)
+                c.drawString(50, 680, f"Número de Campo: {idCampo}")
+                c.drawString(50, 655, f"Placa del Vehículo: {placa}")
+                c.drawString(50, 630, f"Marca: {marca}")
+                c.drawString(50, 605, f"Color: {color}")
+                c.drawString(50, 580, f"Tipo de Vehículo: {tipo}")
+                c.drawString(50, 555, f"Fecha y Hora de Entrada: {horaEntrada}")
+                c.setFont("Helvetica-Bold", 11)
+                c.drawString(50, 510, "Código QR de Verificación:")
+                c.drawImage(rutaQR, 50, 380, width=110, height=110)
+                c.showPage()    #Nueva página en el pdf, como un salto de pág
+
+            c.save()
+
+            messagebox.showinfo("Proceso Terminado",
+                                f"Se ha generado un PDF con {len(vehiculosOcupados)} vouchers.\n\n"
+                                f"Archivo generado: {nombreReporte}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Ocurrió un problema al generar los vouchers: {e}")
