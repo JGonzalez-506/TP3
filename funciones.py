@@ -17,12 +17,9 @@ from tkinter import ttk
 import qrcode
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-<<<<<<< HEAD
 import xml.etree.ElementTree as generadorXML
 from xml.dom import minidom
-=======
 from reportlab.lib import colors
->>>>>>> origin/activaJuan
 
 class vehiculo:
     def __init__(self, datosDict):
@@ -232,7 +229,7 @@ class interfazParqueo:
                                             bg=self.colorFondoCrema)
         mensConfiguracionParqueo.pack(pady=20)
         mensTamannoEstacionamiento = tk.Label(self.venConfig,
-                                              text="Tamaño del estacionamiento (1-75):",
+                                              text="Tamaño del estacionamiento:",
                                               bg=self.colorFondoCrema,
                                               font=("Arial", 12))
         mensTamannoEstacionamiento.pack(pady=(10, 5))
@@ -330,8 +327,15 @@ class interfazParqueo:
             messagebox.showwarning("Datos Inválidos", "Por favor, ingrese un número entero válido.")
             return
         cantidad = int(textoUsuario)
-        # Todavia tenemos dudas de cual es el minimo y el maximo de estacionamientos, de momento, este es el rango que pensamos
-        if 1 <= cantidad <= 75:
+        incluyeElectrico = messagebox.askyesno("Vehículo Eléctrico",
+                                               "¿Desea incorporar un espacio para vehículos eléctricos?")
+        
+        # Limite minimo de 4 si requiere electrico (2 disc + 1 elec + 1 normal), 3 si no (2 disc + 0 elec + 1 normal)
+        if incluyeElectrico:
+            minimoRequerido = 4  
+        else:
+            minimoRequerido = 3
+        if cantidad >= minimoRequerido:
             # Se cualculan cuantos espacios del total se veran reflejados en la interfaz de espacios segun su tipo(normal, discapacitado o electrico)
             datosDescargados = self.guardarDatosParqueo(cantidad, "parqueo.json")
             diccionarioMasivo = {}
@@ -351,8 +355,6 @@ class interfazParqueo:
             cantDiscapacidad = math.ceil(cantidad * 0.05)  # Se redondea hacia arriba el 5% de los espacios para discapacitados para que no queden en decimales
             if cantDiscapacidad < 2:
                 cantDiscapacidad = 2
-            incluyeElectrico = messagebox.askyesno("Vehículo Eléctrico",
-                                                   "¿Desea incorporar un espacio para vehículos eléctricos?")
             if incluyeElectrico:
                 cantElectrico = 1
             else:
@@ -416,10 +418,8 @@ class interfazParqueo:
             cantLibresNormales = math.ceil(
                 espaciosRestantes * 0.05)  # Se redondea hacia arriba el 5% de los espacios normales libres para que no quede en decimales
             cantOcupadosNormales = espaciosRestantes - cantLibresNormales
-            estadosNormales = [True] * cantLibresNormales + [
-                False] * cantOcupadosNormales  # Se crea una lista con el estado de todos los parqueos normales
-            random.shuffle(
-                estadosNormales)  # random.shuffle permite tener aleatoriedad a la hora de visualizar los espacios normales del parqueo
+            estadosNormales = [True] * cantLibresNormales + [False] * cantOcupadosNormales  # Se crea una lista con el estado de todos los parqueos normales
+            random.shuffle(estadosNormales)  # random.shuffle permite tener aleatoriedad a la hora de visualizar los espacios normales del parqueo
             # Se crean y se les asignan los datos de los vehiculos y el numero de campo que ocupan los espacios normales
             for indice in range(espaciosRestantes):
                 estaLibre = estadosNormales[indice]
@@ -476,7 +476,7 @@ class interfazParqueo:
             messagebox.showinfo("Éxito", "Base de datos generada y configuración inicial guardada.\n\n"
                                 f"Se han generando {vouchersGeneradosAPI} vouchers de ingreso.")
         else:
-            messagebox.showwarning("Rango Incorrecto", "La cantidad debe estar entre 1 y 75 espacios.")
+            messagebox.showwarning("Rango Incorrecto", f"La cantidad debe ser de al menos {minimoRequerido} espacios para esta configuracion")
 
     def cargarConfiguracionExistente(self):
         try:
@@ -996,7 +996,6 @@ class interfazParqueo:
             cavasPdf.drawImage(rutaQR, 50, ejeY, width=110, height=110)
             cavasPdf.save()
             return True
-<<<<<<< HEAD
         except:
             messagebox.showerror("Error", f"No se pudo estructurar el PDF")
             return False
@@ -1113,10 +1112,6 @@ class interfazParqueo:
                                                                "horaSalida": str(horaSalida),
                                                                "monto": str(monto),
                                                                "idPago": str(idPago)})
-=======
-        except Exception as e:
-            messagebox.showerror("Error", f"No se pudo estructurar el PDF: {str(e)}")
-            return False
 
     def procesarEstacionamiento(self, parqueoEspecifico, placa, marca, color, tipo, horaEntrada, ventanaInfoVehiculo):
         if not placa.strip() or not marca or not color or not tipo:
@@ -1433,4 +1428,3 @@ class interfazParqueo:
                                 f"Espacios liberados y reporte guardado como:\n{nombreReporte}")
         except Exception as e:
             messagebox.showerror("Error", f"Problema al generar reporte: {e}")
->>>>>>> origin/activaJuan
