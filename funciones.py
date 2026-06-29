@@ -905,6 +905,25 @@ class interfazParqueo:
             # Intentar generar el PDF de la factura
             exitoPDF = self.crearFacturaPDF(parqueoEspecifico.id, placa, marca, color, fEntrada, fSalida, montoFinal, idPago)
             if exitoPDF:
+                #Se añade el vehículo al historial de pagos diarios
+                try:
+                    with open("historialPagos.json", "r", encoding="utf-8") as f:
+                        historial = json.load(f)
+                except:
+                    historial = []
+                historial.append({
+                    "idCampo": parqueoEspecifico.id,
+                    "placa": placa,
+                    "horaEntrada": objetoEntrada.strftime("%d/%m/%y %H:%M:%S"),
+                    "horaSalida": objetoSalida.strftime("%d/%m/%y %H:%M:%S"),
+                    "tipoPago": comboTipoPago.get(),
+                    "monto": montoFinal
+                })
+                try:
+                    with open("historialPagos.json", "w", encoding="utf-8") as f:
+                        json.dump(historial, f, indent=4, ensure_ascii=False)
+                except Exception as e:
+                    print(f"Error crítico al escribir en historial_pagos.json: {e}")
                 # Modificar el estado del espacio para liberarlo
                 parqueoEspecifico.libre = True
                 parqueoEspecifico.info = ("", "", "", "")
@@ -1155,6 +1174,15 @@ class interfazParqueo:
             messagebox.showwarning("Cierre Diario", "No hay una base de datos activa para cerrar.")
             return
         vehiculosOcupados = [p for p in self.baseDatosParqueos if not p.libre]
+        try:
+            with open("historialPagos.json", "r", encoding="utf-8") as f:
+                historial = json.load(f)
+            print("Abre")
+        except:
+            historial = []
+        if not vehiculosOcupados and not historial:
+            messagebox.showinfo("Cierre Diario", "El parqueo está vacío y no se registraron transacciones previas hoy.")
+            return
         if not vehiculosOcupados:
             messagebox.showinfo("Cierre Diario", "El parqueo ya está vacío. No hay transacciones pendientes.")
             return
@@ -1162,6 +1190,10 @@ class interfazParqueo:
         diccPagosInverso = {1: "Efectivo", 2: "SINPE", 3: "Tarjeta"}
         totales = {"Efectivo": 0.0, "SINPE": 0.0, "Tarjeta": 0.0}
         datosTabla = []
+        for reg in historial:
+            datosTabla.append([reg["idCampo"], reg["placa"], reg["horaEntrada"], reg["horaSalida"], reg["tipoPago"],
+                               f"₡{reg['monto']}"])
+            totales[reg["tipoPago"]] += reg["monto"]
         objetoSalida = datetime.now()
         fSalidaObjStr = objetoSalida.strftime("%Y-%m-%d %H:%M:%S")
         fSalidaMostrar = objetoSalida.strftime("%d/%m/%y %H:%M:%S")
@@ -1269,6 +1301,11 @@ class interfazParqueo:
 
             c.save()
 
+            try:
+                with open("historialPagos.json", "w", encoding="utf-8") as f:
+                    json.dump([], f)
+            except:
+                print("Error al resetear el archivo de historial.")
             messagebox.showinfo("Cierre Exitoso",
                                 f"Se procesaron {len(vehiculosOcupados)} vehículos.\n"
                                 f"Espacios liberados y reporte guardado como:\n{nombreReporte}")
