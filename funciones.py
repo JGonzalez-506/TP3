@@ -170,7 +170,7 @@ class interfazParqueo:
         self.botonReportes = tk.Button(self.ventana,
                                        text="Reportes",
                                        font=fuenteBoton,
-                                       command=lambda: print(f"opción 4"))
+                                       command=self.abrirVentanaReportes)
         self.botonReportes.pack(anchor="w", padx=margenIzquierdo, pady=8)
         self.botonConfig = tk.Button(self.ventana,
                                      text="Configuración",
@@ -1109,3 +1109,42 @@ class interfazParqueo:
                                 f"Archivo generado: {nombreReporte}")
         except Exception as e:
             messagebox.showerror("Error", f"Ocurrió un problema al generar los vouchers: {e}")
+
+    def abrirVentanaReportes(self):
+        self.venReportes = tk.Toplevel(self.ventana)
+        self.venReportes.title("Reportes")
+        self.venReportes.geometry("400x350")
+        self.venReportes.configure(bg=self.colorFondoCrema)
+        fuenteBoton = ("Arial", 11)
+        margenIzquierdo = (90, 0)
+        lblTitulo = tk.Label(self.venReportes, text="Reportes", font=("Arial", 16, "bold"), bg=self.colorFondoCrema)
+        lblTitulo.pack(pady=(30, 25))
+        #Opciones de reportes
+        self.btnCierreDiario = tk.Button(
+            self.venReportes,
+            text="Cierre Diario",
+            font=fuenteBoton,
+            command=lambda: print("Reporte 1")
+        )
+        self.btnCierreDiario.pack(anchor="w", padx=margenIzquierdo, pady=8)
+        self.btnCierrePago = tk.Button(
+            self.venReportes,
+            text="Cierre por tipo de pago",
+            font=fuenteBoton,
+            command=lambda: print("Reporte 2")
+        )
+        self.btnCierrePago.pack(anchor="w", padx=margenIzquierdo, pady=8)
+        self.btnExportarCSV = tk.Button(
+            self.venReportes,
+            text="Exportar Cierre Diario a CSV",
+            font=fuenteBoton,
+            command=lambda: print("Reporte 3")
+        )
+        self.btnExportarCSV.pack(anchor="w", padx=margenIzquierdo, pady=8)
+        self.btnRegresarReportes = tk.Button(
+            self.venReportes,
+            text="Regresar",
+            font=fuenteBoton,
+            command=self.venReportes.destroy
+        )
+        self.btnRegresarReportes.pack(anchor="w", padx=margenIzquierdo, pady=(8, 30))
