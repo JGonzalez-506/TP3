@@ -1177,7 +1177,6 @@ class interfazParqueo:
         try:
             with open("historialPagos.json", "r", encoding="utf-8") as f:
                 historial = json.load(f)
-            print("Abre")
         except:
             historial = []
         if not vehiculosOcupados and not historial:
