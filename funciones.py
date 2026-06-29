@@ -4,6 +4,7 @@
 # Version: 3.14.3
 
 # importaciones
+import re
 import tkinter as tk
 from tkinter import messagebox
 import pickle
@@ -16,8 +17,12 @@ from tkinter import ttk
 import qrcode
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+<<<<<<< HEAD
 import xml.etree.ElementTree as generadorXML
 from xml.dom import minidom
+=======
+from reportlab.lib import colors
+>>>>>>> origin/activaJuan
 
 class vehiculo:
     def __init__(self, datosDict):
@@ -106,9 +111,24 @@ class interfazParqueo:
                 if isinstance(listaCargada, list) and len(listaCargada) > 0:
                     self.baseDatosParqueos = listaCargada
                     self.totalParqueos = len(listaCargada)
+                    vouchersCreados = 0
+                    for parqueo in self.baseDatosParqueos:
+                        if not parqueo.libre:
+                            idCampo = parqueo.id
+                            placa, marca, color, tipo = parqueo.info
+                            horaEntrada = parqueo.estadia[1]
+                            self.crearVoucherPDF(idCampo, placa, marca, color, tipo, horaEntrada)
+                            vouchersCreados += 1
+                    if vouchersCreados > 0:
+                        messagebox.showinfo(
+                            "Creación Vouchers",
+                            f"Se han generado {vouchersCreados} vouchers correspondientes a los vehículos encontrados en la base de datos.")
                     return True
         except:
-            pass
+            messagebox.showwarning(
+                "Atención",
+                "No se ha encontrado base de datos previa, por favor ingrese a la configuración."
+            )
         return False
 
     def guardarDatosParqueo(self, cantidad, nombreArchivo):
@@ -146,25 +166,13 @@ class interfazParqueo:
         self.botonObtener = tk.Button(self.ventana,
                                       text="Obtener vehículos y vouchers",
                                       font=fuenteBoton,
-                                      command=lambda: print(f"opción 1"))
+                                      command= self.generarVouchersMasivos)
         self.botonObtener.pack(anchor="w", padx=margenIzquierdo, pady=8)
         self.botonVer = tk.Button(self.ventana,
                                   text="Ver estacionamiento",
                                   font=fuenteBoton,
                                   command=self.abrirVerEstacionamiento)
         self.botonVer.pack(anchor="w", padx=margenIzquierdo, pady=8)
-        self.botonEstacionar = tk.Button(self.ventana,
-                                         text="Estacionar un vehículo",
-                                         font=fuenteBoton,
-                                         command=lambda: print(f"opción 3"))
-        self.botonEstacionar.pack(anchor="w", padx=margenIzquierdo, pady=8)
-        self.botonFacturar = tk.Button(self.ventana,
-                                       text="Facturar 1 espacio",
-                                       font=fuenteBoton,
-                                       command=lambda: print(f"opción 4"))
-        self.botonFacturar.pack(anchor="w",
-                                padx=margenIzquierdo,
-                                pady=8)
         self.botonReportes = tk.Button(self.ventana,
                                        text="Reportes",
                                        font=fuenteBoton,
@@ -178,7 +186,7 @@ class interfazParqueo:
         self.botonAcerca = tk.Button(self.ventana,
                                      text="Acerca de",
                                      font=fuenteBoton,
-                                     command=lambda: print(f"opción 7"))
+                                     command=lambda: print(f"opción 6"))
         self.botonAcerca.pack(anchor="w", padx=margenIzquierdo, pady=8)
         self.botonSalir = tk.Button(self.ventana,
                                     text="Salir",
@@ -197,8 +205,6 @@ class interfazParqueo:
             estado = "disabled"
         self.botonObtener.config(state=estado)
         self.botonVer.config(state="normal")
-        self.botonEstacionar.config(state=estado)
-        self.botonFacturar.config(state=estado)
         self.botonReportes.config(state=estado)
         self.botonAcerca.config(state=estado)
         # Estas dos opciones siempre quedan disponibles
@@ -340,6 +346,7 @@ class interfazParqueo:
                                             "monto": 0,
                                             "tipoPago": 0}
             print(json.dumps(diccionarioMasivo, indent=4, ensure_ascii=False))
+            vouchersGeneradosAPI = 0
             placaVehiculo = 0
             cantDiscapacidad = math.ceil(cantidad * 0.05)  # Se redondea hacia arriba el 5% de los espacios para discapacitados para que no queden en decimales
             if cantDiscapacidad < 2:
@@ -374,6 +381,9 @@ class interfazParqueo:
                     pagoEspacio = pagoEspacio,
                     tipoEspacio = "discapacidad",
                     libre = True))
+                if placa:  # Verifica que el espacio sí recibió un vehículo para crear un voucher
+                    self.crearVoucherPDF(numCampo, placa, marca, color, tipo, horaEntrada)
+                    vouchersGeneradosAPI += 1
                 campoActual += 1
             # Si el usuario confimara que quiere un espacio para un vehiculo electrico, se crea y se asignan los datos del vehiculo y el numero de campo que ocupara el espacio
             if incluyeElectrico:
@@ -397,6 +407,9 @@ class interfazParqueo:
                     pagoEspacio = pagoEstadia,
                     tipoEspacio = "electrico",
                     libre=True))
+                if placa:  # Verifica que el espacio sí recibió un vehículo para crear un voucher
+                    self.crearVoucherPDF(numCampo, placa, marca, color, tipo, horaEntrada)
+                    vouchersGeneradosAPI += 1
                 campoActual += 1
             # Se calculan cuantos espacios normales quedaran ocupados y cuantos quedaran libres, acomodandolos de manera aleatoria
             espaciosRestantes = cantidad - cantDiscapacidad - cantElectrico
@@ -423,6 +436,8 @@ class interfazParqueo:
                         placaVehiculo += 1
                     infoVehiculo = (placa, marca, color, tipo)
                     estadiaEspacio = [numCampo, horaEntrada, ""]
+                    self.crearVoucherPDF(numCampo, placa, marca, color, tipo, horaEntrada)
+                    vouchersGeneradosAPI += 1
                 else:
                     # Si está libre, van vacíos
                     infoVehiculo = ("", "", "", "")
@@ -458,7 +473,8 @@ class interfazParqueo:
             # Se destruye la ventana de configuración, se regresa al menú y se notifica el éxito
             self.venConfig.destroy()
             self.ventana.deiconify()
-            messagebox.showinfo("Éxito", "Base de datos generada y configuración inicial guardada.")
+            messagebox.showinfo("Éxito", "Base de datos generada y configuración inicial guardada.\n\n"
+                                f"Se han generando {vouchersGeneradosAPI} vouchers de ingreso.")
         else:
             messagebox.showwarning("Rango Incorrecto", "La cantidad debe estar entre 1 y 75 espacios.")
 
@@ -720,101 +736,132 @@ class interfazParqueo:
         self.mostrarEspaciosPaginaActual()
 
     def clickEspacio(self, parqueoEspecifico):
-        if parqueoEspecifico.libre:
+        esLibre = parqueoEspecifico.libre
+
+        # Listas de opciones requeridas
+        listaMarcas = ["Toyota", "Hyundai", "Nissan", "Suzuki", "Honda", "Mitsubishi", "Kia", "Ford", "Chevrolet",
+                       "Mazda", "Isuzu", "BYD", "Geely", "BMW", "Volkswagen"]
+        listaColores = ["Blanco", "Negro", "Gris", "Plata", "Rojo", "Azul", "Verde", "Dorado", "Beige", "Bronce"]
+        listaTipos = ["Sedan", "SUV", "Pick-up", "Hatchback", "Microbus"]
+
+        if esLibre:
             placa = ""
             marca = ""
             color = ""
             tipo = ""
-            ubicacion, horaEntrada, horaSalida = "", "", ""
-            monto, tipoPago = 0, ""
+            # Se toma la hora exacta del sistema al momento de abrir el espacio
+            horaEntradaInterna = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            horaFormateada = datetime.now().strftime("%d/%m/%y %H:%M:%S")
+            textoBoton = "Estacionar"
         else:
             placa, marca, color, tipo = parqueoEspecifico.info
-            ubicacion, horaEntrada, horaSalida = parqueoEspecifico.estadia
+            ubicacion, horaEntradaInterna, horaSalida = parqueoEspecifico.estadia
             monto, tipoPago = parqueoEspecifico.pago
-        # Se crea la pequeña ventana
+            horaFormateada = horaEntradaInterna
+            try:
+                objetoFecha = datetime.strptime(horaEntradaInterna, "%Y-%m-%d %H:%M:%S")
+                horaFormateada = objetoFecha.strftime("%d/%m/%y %H:%M:%S")
+            except:
+                pass
+            textoBoton = "Pagar"
+
+        # Se crea la pequeña ventana (Altura ajustada a 480 para soportar el campo "Tipo")
         ventanaInfoVehiculo = tk.Toplevel(self.venParqueo)
         ventanaInfoVehiculo.title(f"Espacio {parqueoEspecifico.id}")
-        ventanaInfoVehiculo.geometry("280x420")
+        ventanaInfoVehiculo.geometry("280x480")
         ventanaInfoVehiculo.configure(bg=self.colorFondoCrema)
+
+        # Estado dinámico: "normal"/"readonly" para escribir/seleccionar si está libre, "disabled" si está ocupado
+        estadoCampos = "normal" if esLibre else "disabled"
+        estadoComboBox = "readonly" if esLibre else "disabled"
+
         # Campo
-        mensCampo = tk.Label(ventanaInfoVehiculo,
-                             text="Campo:",
-                             bg=self.colorFondoCrema,
-                             font=("Arial", 10))
-        mensCampo.place(x=25, y=15)
+        tk.Label(ventanaInfoVehiculo,
+                 text="Campo:",
+                 bg=self.colorFondoCrema,
+                 font=("Arial", 10)).place(x=25, y=15)
         comboCampo = ttk.Combobox(ventanaInfoVehiculo,
                                   values=[parqueoEspecifico.id])
         comboCampo.set(parqueoEspecifico.id)
         comboCampo.config(state="disabled")
         comboCampo.place(x=25, y=38, width=230)
+
         # Placa
-        mensPlaca = tk.Label(ventanaInfoVehiculo,
-                             text="Placa:",
-                             bg=self.colorFondoCrema,
-                             font=("Arial", 10))
-        mensPlaca.place(x=25, y=75)
+        tk.Label(ventanaInfoVehiculo,
+                 text="Placa:",
+                 bg=self.colorFondoCrema,
+                 font=("Arial", 10)).place(x=25, y=75)
         entryPlaca = tk.Entry(ventanaInfoVehiculo,
                               font=("Arial", 10))
-        entryPlaca.insert(0, placa)  # Se coloca la placa del vehiculo en la caja de texto, y el 0 para que se acomo desde el inicio de la caja de texto
-        entryPlaca.config(state="disabled")
+        entryPlaca.insert(0, placa)
+        entryPlaca.config(state=estadoCampos)
         entryPlaca.place(x=25, y=98, width=230)
+
         # Marca
-        mensMarca = tk.Label(ventanaInfoVehiculo,
-                             text="Marca:",
-                             bg=self.colorFondoCrema,
-                             font=("Arial", 10))
-        mensMarca.place(x=25, y=135)
+        tk.Label(ventanaInfoVehiculo,
+                 text="Marca:",
+                 bg=self.colorFondoCrema,
+                 font=("Arial", 10)).place(x=25, y=135)
         comboMarca = ttk.Combobox(ventanaInfoVehiculo,
-                                  font=("Arial", 10))
-        comboMarca.set(marca)
-        comboMarca.config(state="disabled")
+                                  values=listaMarcas,
+                                  font=("Arial", 10),
+                                  state=estadoComboBox)
+        if marca: comboMarca.set(marca)
         comboMarca.place(x=25, y=158, width=230)
+
         # Color
-        mensColor = tk.Label(ventanaInfoVehiculo,
-                             text="Color:",
-                             bg=self.colorFondoCrema,
-                             font=("Arial", 10))
-        mensColor.place(x=25, y=195)
+        tk.Label(ventanaInfoVehiculo,
+                 text="Color:",
+                 bg=self.colorFondoCrema,
+                 font=("Arial", 10)).place(x=25, y=195)
         comboColor = ttk.Combobox(ventanaInfoVehiculo,
-                                  font=("Arial", 10))
-        comboColor.set(color)
-        comboColor.config(state="disabled")
+                                  values=listaColores,
+                                  font=("Arial", 10),
+                                  state=estadoComboBox)
+        if color: comboColor.set(color)
         comboColor.place(x=25, y=218, width=230)
-        # Hora de entrada
-        mensHora = tk.Label(ventanaInfoVehiculo,
-                            text="Hora de entrada:",
-                            bg=self.colorFondoCrema,
-                            font=("Arial", 10))
-        mensHora.place(x=25, y=255)
-        horaSucia = horaEntrada
-        horaFormateada = horaSucia
-        try:
-            objetoFecha = datetime.strptime(horaSucia, "%Y-%m-%d %H:%M:%S")
-            horaFormateada = objetoFecha.strftime("%d/%m/%y %H:%M:%S")
-        except:
-            pass
+
+        # Tipo
+        tk.Label(ventanaInfoVehiculo,
+                 text="Tipo:",
+                 bg=self.colorFondoCrema,
+                 font=("Arial", 10)).place(x=25, y=255)
+        comboTipo = ttk.Combobox(ventanaInfoVehiculo,
+                                 values=listaTipos,
+                                 font=("Arial", 10),
+                                 state=estadoComboBox)
+        if tipo: comboTipo.set(tipo)
+        comboTipo.place(x=25, y=278, width=230)
+
+        # Hora de entrada (Solo lectura, se llena automático del sistema)
+        tk.Label(ventanaInfoVehiculo,
+                 text="Hora de entrada:",
+                 bg=self.colorFondoCrema,
+                 font=("Arial", 10)).place(x=25,
+                                                                                                                  y=315)
         entryEntrada = tk.Entry(ventanaInfoVehiculo,
                                 font=("Arial", 10))
-        entryEntrada.insert(0, horaFormateada)  # Se coloca el hora de entrada del vehiculo en la caja de texto, y el 0 para que se acomo desde el inicio de la caja de texto
-
+        entryEntrada.insert(0, horaFormateada)
         entryEntrada.config(state="disabled")
-        entryEntrada.place(x=25, y=278, width=230)
-        # Pagar
-        botonPagar = tk.Button(ventanaInfoVehiculo,
-                               text="Pagar",
-                               font=("Arial", 10, "bold"),
-                               bg="#A6B9CB",
-                               fg="black",
-                               relief="solid",
-                               bd=1)
-        # Usamos height=50 para hacer mas grande el boton
-        botonPagar.place(x=25, y=330, width=230, height=50)
+        entryEntrada.place(x=25, y=338, width=230)
 
-        if parqueoEspecifico.libre:
-            botonPagar.config(state="disabled")
+        # Botón dinámico: Cambia entre "Estacionar" y "Pagar"
+        botonAccion = tk.Button(ventanaInfoVehiculo,
+                                text=textoBoton,
+                                font=("Arial", 10, "bold"),
+                                bg="#A6B9CB",
+                                fg="black",
+                                relief="solid",
+                                bd=1)
+        botonAccion.place(x=25, y=390, width=230, height=50)
+
+        # Asignación de funciones según el estado
+        if esLibre:
+            botonAccion.config(command=lambda: self.procesarEstacionamiento(
+                parqueoEspecifico, entryPlaca.get(), comboMarca.get(), comboColor.get(), comboTipo.get(),
+                horaEntradaInterna, ventanaInfoVehiculo))
         else:
-            botonPagar.config(state="normal", 
-                              command=lambda: self.abrirVentanaPago(parqueoEspecifico, ventanaInfoVehiculo))
+            botonAccion.config(command=lambda: self.abrirVentanaPago(parqueoEspecifico, ventanaInfoVehiculo))
 
     def abrirVentanaPago(self, parqueoEspecifico, ventanaInfoVehiculo):
         horaEntrada = parqueoEspecifico.estadia[1]
@@ -863,6 +910,25 @@ class interfazParqueo:
             # Intentar generar el PDF de la factura
             exitoPDF = self.crearFacturaPDF(parqueoEspecifico.id, placa, marca, color, fechaEntrada, fechaSalida, montoFinal, idPago)
             if exitoPDF:
+                #Se añade el vehículo al historial de pagos diarios
+                try:
+                    with open("historialPagos.json", "r", encoding="utf-8") as f:
+                        historial = json.load(f)
+                except:
+                    historial = []
+                historial.append({
+                    "idCampo": parqueoEspecifico.id,
+                    "placa": placa,
+                    "horaEntrada": objetoEntrada.strftime("%d/%m/%y %H:%M:%S"),
+                    "horaSalida": objetoSalida.strftime("%d/%m/%y %H:%M:%S"),
+                    "tipoPago": comboTipoPago.get(),
+                    "monto": montoFinal
+                })
+                try:
+                    with open("historialPagos.json", "w", encoding="utf-8") as f:
+                        json.dump(historial, f, indent=4, ensure_ascii=False)
+                except Exception as e:
+                    print(f"Error crítico al escribir en historial_pagos.json: {e}")
                 # Modificar el estado del espacio para liberarlo
                 parqueoEspecifico.libre = True
                 parqueoEspecifico.info = (placa, marca, color, tipoVehiculo)
@@ -930,6 +996,7 @@ class interfazParqueo:
             cavasPdf.drawImage(rutaQR, 50, ejeY, width=110, height=110)
             cavasPdf.save()
             return True
+<<<<<<< HEAD
         except:
             messagebox.showerror("Error", f"No se pudo estructurar el PDF")
             return False
@@ -1046,3 +1113,324 @@ class interfazParqueo:
                                                                "horaSalida": str(horaSalida),
                                                                "monto": str(monto),
                                                                "idPago": str(idPago)})
+=======
+        except Exception as e:
+            messagebox.showerror("Error", f"No se pudo estructurar el PDF: {str(e)}")
+            return False
+
+    def procesarEstacionamiento(self, parqueoEspecifico, placa, marca, color, tipo, horaEntrada, ventanaInfoVehiculo):
+        if not placa.strip() or not marca or not color or not tipo:
+            messagebox.showwarning("Campos Incompletos",
+                                   "Por favor, complete todos los campos requeridos.")
+            return
+        placa = placa.strip()
+        patronPlaca = r"^[A-Z]{3}\d{3}|\d{6}$"
+        if not re.match(patronPlaca, placa):
+            messagebox.showerror(
+                "Formato de Placa Inválido",
+                "La placa ingresada no cuenta con un formato permitido.\n\n"
+                "Formatos válidos:\n"
+                "- 3 letras mayúsculas y 3 números (Ej: ABC123)\n"
+                "- 6 números exactos (Ej: 123456)"
+            )
+            return  # Este return es vital para detener el proceso y no dejar que avance
+        # Modifica el estado del espacio
+        parqueoEspecifico.libre = False
+        parqueoEspecifico.info = (placa, marca, color, tipo)
+        parqueoEspecifico.estadia = [parqueoEspecifico.id, horaEntrada, ""]
+        parqueoEspecifico.pago = (0, 0)
+        # Actualiza la base de datos
+        try:
+            with open("bdParqueo.txt", "wb") as archivoBinario:
+                pickle.dump(self.baseDatosParqueos, archivoBinario)
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al guardar la base de datos de manera binaria: {e}")
+            return
+        # Genera el PDF del Voucher de entrada
+        self.crearVoucherPDF(parqueoEspecifico.id, placa, marca, color, tipo, horaEntrada)
+        # Redibuja la cuadrícula en tiempo real y cierra la ventana
+        self.mostrarEspaciosPaginaActual()
+        messagebox.showinfo("Éxito", f"El vehículo placa {placa} ha sido estacionado.\nVoucher PDF generado.")
+        ventanaInfoVehiculo.destroy()
+
+    def crearVoucherPDF(self, idCampo, placa, marca, color, tipo, horaEntrada):
+        try:
+            #Formateo de fecha
+            objetoFecha = datetime.strptime(horaEntrada, "%Y-%m-%d %H:%M:%S")
+            fechaNombre = objetoFecha.strftime("%d-%m-%Y_%H-%M")
+            nombreVoucher = f"voucher#{placa}_{fechaNombre}.pdf"
+
+            #Información del QR actualizada incluyendo todos los campos
+            infoQR = f"{idCampo}-{placa}-{marca}-{color}-{tipo}-{horaEntrada}"
+
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(infoQR)
+            qr.make(fit=True)
+            #Generación y guardado del archivo QR temporal
+            imgQR = qr.make_image(fill_color="black", back_color="white")
+            rutaQR = f"tempQRingreso_{placa}.png"
+            imgQR.save(rutaQR)
+            c = canvas.Canvas(nombreVoucher, pagesize=letter)
+            c.setFont("Helvetica-Bold", 14)
+            c.drawString(50, 720, "VOUCHER DE INGRESO - ESTACIONAMIENTO")
+            #Datos completos
+            c.setFont("Helvetica", 11)
+            c.drawString(50, 680, f"Número de Campo: {idCampo}")
+            c.drawString(50, 655, f"Placa del Vehículo: {placa}")
+            c.drawString(50, 630, f"Marca: {marca}")
+            c.drawString(50, 605, f"Color: {color}")
+            c.drawString(50, 580, f"Tipo de Vehículo: {tipo}")
+            c.drawString(50, 555, f"Fecha y Hora de Entrada: {horaEntrada}")
+            #Sección del QR de Verificación
+            c.setFont("Helvetica-Bold", 11)
+            c.drawString(50, 510, "Código QR de Verificación:")
+            c.drawImage(rutaQR, 50, 380, width=110, height=110)
+            #Guardar el documento PDF finalizado
+            c.save()
+
+        except Exception as e:
+            print(f"Error al estructurar el PDF del Voucher: {e}")
+
+    def generarVouchersMasivos(self):
+        if not self.hayBaseDatos or not self.baseDatosParqueos:
+            messagebox.showwarning("Aviso", "No hay una base de datos activa en el sistema.")
+            return
+        vehiculosOcupados = [parqueo for parqueo in self.baseDatosParqueos if not parqueo.libre]
+        if not vehiculosOcupados:
+            messagebox.showinfo("Aviso", "No hay vehículos estacionados en este momento en el parqueo.")
+            return
+        fechaNombre = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+        nombreReporte = f"ReporteCompletoVouchers{fechaNombre}.pdf"
+
+        try:
+            c = canvas.Canvas(nombreReporte, pagesize=letter)
+            rutasQRTemporales = []
+
+            for parqueo in vehiculosOcupados:
+                idCampo = parqueo.id
+                placa, marca, color, tipo = parqueo.info
+                horaEntrada = parqueo.estadia[1]
+
+                infoQR = f"{idCampo}-{placa}-{marca}-{color}-{tipo}-{horaEntrada}"
+                qr = qrcode.QRCode(
+                    version=1,
+                    error_correction=qrcode.constants.ERROR_CORRECT_L,
+                    box_size=10,
+                    border=4,
+                )
+                qr.add_data(infoQR)
+                qr.make(fit=True)
+
+                imgQR = qr.make_image(fill_color="black", back_color="white")
+                rutaQR = f"tempQR_masivo_{placa}.png"
+                imgQR.save(rutaQR)
+                rutasQRTemporales.append(rutaQR)
+                c.setFont("Helvetica-Bold", 14)
+                c.drawString(50, 720, "VOUCHER DE INGRESO - ESTACIONAMIENTO")
+                #Datos completos del vehículo
+                c.setFont("Helvetica", 11)
+                c.drawString(50, 680, f"Número de Campo: {idCampo}")
+                c.drawString(50, 655, f"Placa del Vehículo: {placa}")
+                c.drawString(50, 630, f"Marca: {marca}")
+                c.drawString(50, 605, f"Color: {color}")
+                c.drawString(50, 580, f"Tipo de Vehículo: {tipo}")
+                c.drawString(50, 555, f"Fecha y Hora de Entrada: {horaEntrada}")
+                c.setFont("Helvetica-Bold", 11)
+                c.drawString(50, 510, "Código QR de Verificación:")
+                c.drawImage(rutaQR, 50, 380, width=110, height=110)
+                c.showPage()    #Nueva página en el pdf, como un salto de pág
+
+            c.save()
+
+            messagebox.showinfo("Proceso Terminado",
+                                f"Se ha generado un PDF con {len(vehiculosOcupados)} vouchers.\n\n"
+                                f"Archivo generado: {nombreReporte}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Ocurrió un problema al generar los vouchers: {e}")
+
+    def abrirVentanaReportes(self):
+        self.venReportes = tk.Toplevel(self.ventana)
+        self.venReportes.title("Reportes")
+        self.venReportes.geometry("400x350")
+        self.venReportes.configure(bg=self.colorFondoCrema)
+        fuenteBoton = ("Arial", 11)
+        margenIzquierdo = (90, 0)
+        lblTitulo = tk.Label(self.venReportes, text="Reportes", font=("Arial", 16, "bold"), bg=self.colorFondoCrema)
+        lblTitulo.pack(pady=(30, 25))
+        #Opciones de reportes
+        self.btnCierreDiario = tk.Button(
+            self.venReportes,
+            text="Cierre Diario",
+            font=fuenteBoton,
+            command=self.ejecutarCierreDiario
+        )
+        self.btnCierreDiario.pack(anchor="w", padx=margenIzquierdo, pady=8)
+        self.btnCierrePago = tk.Button(
+            self.venReportes,
+            text="Cierre por tipo de pago",
+            font=fuenteBoton,
+            command=lambda: print("Reporte 2")
+        )
+        self.btnCierrePago.pack(anchor="w", padx=margenIzquierdo, pady=8)
+        self.btnExportarCSV = tk.Button(
+            self.venReportes,
+            text="Exportar Cierre Diario a CSV",
+            font=fuenteBoton,
+            command=lambda: print("Reporte 3")
+        )
+        self.btnExportarCSV.pack(anchor="w", padx=margenIzquierdo, pady=8)
+        self.btnRegresarReportes = tk.Button(
+            self.venReportes,
+            text="Regresar",
+            font=fuenteBoton,
+            command=self.venReportes.destroy
+        )
+        self.btnRegresarReportes.pack(anchor="w", padx=margenIzquierdo, pady=(8, 30))
+
+    def ejecutarCierreDiario(self):
+        if not self.hayBaseDatos or not self.baseDatosParqueos:
+            messagebox.showwarning("Cierre Diario", "No hay una base de datos activa para cerrar.")
+            return
+        vehiculosOcupados = [p for p in self.baseDatosParqueos if not p.libre]
+        try:
+            with open("historialPagos.json", "r", encoding="utf-8") as f:
+                historial = json.load(f)
+        except:
+            historial = []
+        if not vehiculosOcupados and not historial:
+            messagebox.showinfo("Cierre Diario", "El parqueo está vacío y no se registraron transacciones previas hoy.")
+            return
+        if not vehiculosOcupados:
+            messagebox.showinfo("Cierre Diario", "El parqueo ya está vacío. No hay transacciones pendientes.")
+            return
+        # Diccionario para facturación aleatoria
+        diccPagosInverso = {1: "Efectivo", 2: "SINPE", 3: "Tarjeta"}
+        totales = {"Efectivo": 0.0, "SINPE": 0.0, "Tarjeta": 0.0}
+        datosTabla = []
+        for reg in historial:
+            datosTabla.append([reg["idCampo"], reg["placa"], reg["horaEntrada"], reg["horaSalida"], reg["tipoPago"],
+                               f"₡{reg['monto']}"])
+            totales[reg["tipoPago"]] += reg["monto"]
+        objetoSalida = datetime.now()
+        fSalidaObjStr = objetoSalida.strftime("%Y-%m-%d %H:%M:%S")
+        fSalidaMostrar = objetoSalida.strftime("%d/%m/%y %H:%M:%S")
+        for parqueo in vehiculosOcupados:
+            placa, marca, color, tipo = parqueo.info
+            horaEntrada = parqueo.estadia[1]
+            try:
+                objetoEntrada = datetime.strptime(horaEntrada, "%Y-%m-%d %H:%M:%S")
+                fEntradaMostrar = objetoEntrada.strftime("%d/%m/%y %H:%M:%S")
+            except:
+                objetoEntrada = objetoSalida
+                fEntradaMostrar = horaEntrada
+            diferencia = objetoSalida - objetoEntrada
+            minutosTranscurridos = diferencia.total_seconds() / 60
+            if minutosTranscurridos <= self.tiempoGracia:
+                montoFinal = 0
+            else:
+                minutosCobrables = minutosTranscurridos - self.tiempoGracia
+                horasACobrar = math.ceil(minutosCobrables / 60)
+                montoFinal = horasACobrar * self.montoHora
+            idPagoAleatorio = random.choice([1, 2, 3])
+            textoPago = diccPagosInverso[idPagoAleatorio]
+            totales[textoPago] += montoFinal
+            fEntradaFactura = objetoEntrada.strftime("%d-%m-%Y %H:%M:%S")
+            fSalidaFactura = objetoSalida.strftime("%d-%m-%Y %H:%M:%S")
+            self.crearFacturaPDF(parqueo.id, placa, marca, color, fEntradaFactura, fSalidaFactura, montoFinal,
+                                 idPagoAleatorio)
+            datosTabla.append([parqueo.id, placa, fEntradaMostrar, fSalidaMostrar, textoPago, f"₡{montoFinal}"])
+            parqueo.libre = True
+            parqueo.info = ("", "", "", "")
+            parqueo.estadia = [parqueo.id, "", ""]
+            parqueo.pago = (0, 0)
+        try:
+            with open("bdParqueo.txt", "wb") as archivoBinario:
+                pickle.dump(self.baseDatosParqueos, archivoBinario)
+        except:
+            print("Error al guardar la base de datos de manera binaria.")
+        fechaReporte = datetime.now().strftime("%d-%m-%Y_%H-%M")
+        nombreReporte = f"reporteCierreDiaro_{fechaReporte}.pdf"
+        try:
+            c = canvas.Canvas(nombreReporte, pagesize=letter)
+            c_primario = colors.HexColor("#1B365D")  # Azul Marino
+            c_blanco = colors.HexColor("#FFFFFF")  # Blanco
+            c_oscuro = colors.HexColor("#333333")  # Gris Oscuro Textos
+            c.setFillColor(c_primario)
+            c.setFont("Helvetica-Bold", 22)
+            c.drawString(50, 730, "REPORTE DE CIERRE DIARIO")
+            c.setFillColor(c_oscuro)
+            c.setFont("Helvetica", 12)
+            c.drawString(50, 705, f"Fecha de emisión: {datetime.now().strftime('%d/%m/%Y %I:%M %p')}")
+            c.setFillColor(c_primario)
+            c.rect(50, 675, 510, 20, fill=1, stroke=0)  # Fondo azul del encabezado
+            c.setFillColor(c_blanco)
+            c.setFont("Helvetica-Bold", 12)  # (REGLA TAMAÑO 2: 12pts)
+            #Coordenadas para las columnas
+            c.drawString(55, 680, "Ubicación")
+            c.drawString(115, 680, "Placa")
+            c.drawString(175, 680, "Hora Entrada")
+            c.drawString(275, 680, "Hora Salida")
+            c.drawString(385, 680, "Tipo Pago")
+            c.drawString(485, 680, "Monto")
+            c.setFillColor(c_oscuro)
+            c.setFont("Helvetica", 9)
+            ejeY = 660
+            for fila in datosTabla:
+                if ejeY < 150:
+                    c.showPage()
+                    ejeY = 730
+                    c.setFillColor(c_oscuro)
+                    c.setFont("Helvetica", 9)
+                c.drawString(55, ejeY, str(fila[0]))
+                c.drawString(115, ejeY, str(fila[1]))
+                c.drawString(175, ejeY, str(fila[2]))
+                c.drawString(275, ejeY, str(fila[3]))
+                c.drawString(385, ejeY, str(fila[4]))
+                c.drawString(485, ejeY, str(fila[5]))
+                c.setStrokeColor(c_oscuro)
+                c.setLineWidth(0.5)
+                c.line(50, ejeY - 5, 560, ejeY - 5)
+                ejeY -= 20
+            if ejeY < 150:
+                c.showPage()
+                ejeY = 750
+            ejeY -= 20
+            c.setFillColor(c_primario)
+            c.setFont("Helvetica-Bold", 12)
+            c.drawString(50, ejeY, "RESUMEN DE RECAUDACIÓN DEL DÍA")
+            ejeY -= 25
+            c.setFillColor(c_oscuro)
+            c.setFont("Helvetica", 9)
+            c.drawString(50, ejeY, "Efectivo:")
+            c.drawString(150, ejeY, f"₡{totales['Efectivo']:,.2f}")
+            ejeY -= 15
+            c.drawString(50, ejeY, "SINPE:")
+            c.drawString(150, ejeY, f"₡{totales['SINPE']:,.2f}")
+            ejeY -= 15
+            c.drawString(50, ejeY, "Tarjeta:")
+            c.drawString(150, ejeY, f"₡{totales['Tarjeta']:,.2f}")
+            ejeY -= 20
+            montoTotal = sum(totales.values())
+            c.setFont("Helvetica-Bold", 12)
+            c.setFillColor(c_primario)
+            c.drawString(50, ejeY, "TOTAL ACUMULADO:")
+            c.drawString(180, ejeY, f"₡{montoTotal:,.2f}")
+
+            c.save()
+
+            try:
+                with open("historialPagos.json", "w", encoding="utf-8") as f:
+                    json.dump([], f)
+            except:
+                print("Error al resetear el archivo de historial.")
+            messagebox.showinfo("Cierre Exitoso",
+                                f"Se procesaron {len(vehiculosOcupados)} vehículos.\n"
+                                f"Espacios liberados y reporte guardado como:\n{nombreReporte}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Problema al generar reporte: {e}")
+>>>>>>> origin/activaJuan

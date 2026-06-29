@@ -3,4 +3,5 @@
 /parqueo.json
 /pruebas.py
 /bdParqueo.txt
-/config.txt
+/configuracion.json
+/historialPagos.json
