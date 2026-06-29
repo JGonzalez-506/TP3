@@ -183,7 +183,7 @@ class interfazParqueo:
         self.botonAcerca = tk.Button(self.ventana,
                                      text="Acerca de",
                                      font=fuenteBoton,
-                                     command=lambda: print(f"opción 6"))
+                                     command=self.abrirVentanaAcercaDe)
         self.botonAcerca.pack(anchor="w", padx=margenIzquierdo, pady=8)
         self.botonSalir = tk.Button(self.ventana,
                                     text="Salir",
@@ -203,7 +203,7 @@ class interfazParqueo:
         self.botonObtener.config(state=estado)
         self.botonVer.config(state="normal")
         self.botonReportes.config(state=estado)
-        self.botonAcerca.config(state=estado)
+        self.botonAcerca.config(state="normal")
         # Estas dos opciones siempre quedan disponibles
         self.botonConfig.config(state="normal")
         self.botonSalir.config(state="normal")
@@ -1247,6 +1247,26 @@ class interfazParqueo:
                                 f"Archivo generado: {nombreReporte}")
         except Exception as e:
             messagebox.showerror("Error", f"Ocurrió un problema al generar los vouchers: {e}")
+
+    def abrirVentanaAcercaDe(self):
+        ventanaAcerca = tk.Toplevel(self.ventana)
+        ventanaAcerca.title("Acerca de")
+        self.dimensionarVentana(ventanaAcerca, 600, 600)
+        ventanaAcerca.configure(bg=self.colorFondoCrema)
+        # Etiqueta con el mensaje de los creadores
+        mensAcercaDe = tk.Label(ventanaAcerca, 
+                              text="Estacionamiento Inteligente\n\nProyecto diseñado para ofrecer comodidad tanto para el\nusuario como para la sencilla administracion de los espacios\ndel estacionamineto de la empresas.\n\nPosee una interfaz grafica amigable con el usuario\npara observar de manera sencilla los espacios ocupados\ny libres del estacionamiento, ademas de poder\ngenerar reportes segun el usuario requiera.\n\nElaborado por Juan Gonzalez y Derian Segura", 
+                              font=("Arial", 13),
+                              bg=self.colorFondoCrema,
+                              fg=self.colorTexto)
+        mensAcercaDe.place(x=80, y=150)
+        # Botón para cerrar la ventana y regresar al menú principal
+        btnRegresar = tk.Button(ventanaAcerca, 
+                                text="Regresar al Menú", 
+                                font=("Arial", 10),
+                                command=ventanaAcerca.destroy,  # Destruye únicamente esta ventana secundaria
+                                activebackground="#D0BFAB")
+        btnRegresar.place(x=235, y=540)
 
     def abrirVentanaReportes(self):
         self.venReportes = tk.Toplevel(self.ventana)
