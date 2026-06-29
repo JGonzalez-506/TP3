@@ -364,54 +364,32 @@ class interfazParqueo:
             # Se crean y se les asignan los datos de los vehiculos y el numero de campo que ocupan los espacios para discapacitados
             for indice in range(cantDiscapacidad):
                 numCampo = f"C{campoActual}"
-                horaEntrada = self.generarHoraEntradaAleatoria()
-                placa, marca, color, tipo = "", "", "", "discapacidad"
-                if placaVehiculo < len(datosDescargados):
-                    infoVehiculo = datosDescargados[placaVehiculo]
-                    placa = infoVehiculo.get("placa")
-                    marca = infoVehiculo.get("marca")
-                    color = infoVehiculo.get("color")
-                    tipo = infoVehiculo.get("tipo")
-                    placaVehiculo += 1
-                infoVehiculo = (placa, marca, color, tipo)
-                estadiaEspacio = [numCampo, horaEntrada, ""]
+                infoVehiculoTupla = ("", "", "", "")
+                estadiaEspacio = [numCampo, "", ""]
+                estaLibre = True
                 pagoEspacio = (0, 0)
                 parqueosGenerados.append(espacioParqueo(
-                    numCampo = numCampo,
-                    infoVehiculo = infoVehiculo,
-                    estadiaEspacio = estadiaEspacio,
-                    pagoEspacio = pagoEspacio,
-                    tipoEspacio = "discapacidad",
-                    libre = True))
-                if placa:  # Verifica que el espacio sí recibió un vehículo para crear un voucher
-                    self.crearVoucherPDF(numCampo, placa, marca, color, tipo, horaEntrada)
-                    vouchersGeneradosAPI += 1
+                    numCampo=numCampo,
+                    infoVehiculo=infoVehiculoTupla,
+                    estadiaEspacio=estadiaEspacio,
+                    pagoEspacio=pagoEspacio,
+                    tipoEspacio="discapacidad",
+                    libre=estaLibre))
                 campoActual += 1
             # Si el usuario confimara que quiere un espacio para un vehiculo electrico, se crea y se asignan los datos del vehiculo y el numero de campo que ocupara el espacio
             if incluyeElectrico:
                 numCampo = f"C{campoActual}"
-                horaEntrada = self.generarHoraEntradaAleatoria()
-                placa, marca, color, tipo = "", "", "", "electrico"
-                if placaVehiculo < len(datosDescargados):
-                    infoVehiculo = datosDescargados[placaVehiculo]
-                    placa = infoVehiculo.get("placa")
-                    marca = infoVehiculo.get("marca")
-                    color = infoVehiculo.get("color")
-                    tipo = infoVehiculo.get("tipo")
-                    placaVehiculo += 1
-                infoVehiculo = (placa, marca, color, tipo)
-                estadiaEspacio = [numCampo, horaEntrada, ""]
-                pagoEstadia = (0, 0)
+                infoVehiculoTupla = ("", "", "", "")
+                estadiaEspacio = [numCampo, "", ""]
+                estaLibre = True
+                pagoEspacio = (0, 0)
                 parqueosGenerados.append(espacioParqueo(
-                    numCampo = numCampo,
-                    infoVehiculo = infoVehiculo,
-                    estadiaEspacio = estadiaEspacio,
-                    pagoEspacio = pagoEstadia,
-                    tipoEspacio = "electrico",
-                    libre=True))
-                if placa:  # Verifica que el espacio sí recibió un vehículo para crear un voucher
-                    self.crearVoucherPDF(numCampo, placa, marca, color, tipo, horaEntrada)
-                    vouchersGeneradosAPI += 1
+                    numCampo=numCampo,
+                    infoVehiculo=infoVehiculoTupla,
+                    estadiaEspacio=estadiaEspacio,
+                    pagoEspacio=pagoEspacio,
+                    tipoEspacio="electrico",
+                    libre=estaLibre))  # <-- Corregido para ser dinámico
                 campoActual += 1
             # Se calculan cuantos espacios normales quedaran ocupados y cuantos quedaran libres, acomodandolos de manera aleatoria
             espaciosRestantes = cantidad - cantDiscapacidad - cantElectrico
@@ -425,7 +403,6 @@ class interfazParqueo:
                 estaLibre = estadosNormales[indice]
                 numCampo = f"C{campoActual}"
                 if not estaLibre:
-                    horaEntrada = self.generarHoraEntradaAleatoria()
                     placa, marca, color, tipo = "", "", "", "normal"
                     if placaVehiculo < len(datosDescargados):
                         infoVehiculo = datosDescargados[placaVehiculo]
@@ -434,22 +411,27 @@ class interfazParqueo:
                         color = infoVehiculo.get("color")
                         tipo = infoVehiculo.get("tipo")
                         placaVehiculo += 1
-                    infoVehiculo = (placa, marca, color, tipo)
-                    estadiaEspacio = [numCampo, horaEntrada, ""]
-                    self.crearVoucherPDF(numCampo, placa, marca, color, tipo, horaEntrada)
-                    vouchersGeneradosAPI += 1
+                    if placa:
+                        horaEntrada = self.generarHoraEntradaAleatoria()
+                        infoVehiculoTupla = (placa, marca, color, tipo)
+                        estadiaEspacio = [numCampo, horaEntrada, ""]
+                        self.crearVoucherPDF(numCampo, placa, marca, color, tipo, horaEntrada)
+                        vouchersGeneradosAPI += 1
+                    else:
+                        estaLibre = True
+                        infoVehiculoTupla = ("", "", "", "")
+                        estadiaEspacio = [numCampo, "", ""]
                 else:
-                    # Si está libre, van vacíos
-                    infoVehiculo = ("", "", "", "")
+                    infoVehiculoTupla = ("", "", "", "")
                     estadiaEspacio = [numCampo, "", ""]
-                    pagoEspacio = (0, 0)
+                pagoEspacio = (0, 0)
                 parqueosGenerados.append(espacioParqueo(
-                    numCampo = numCampo,
-                    infoVehiculo = infoVehiculo,
-                    estadiaEspacio = estadiaEspacio,
-                    pagoEspacio = pagoEspacio,
-                    tipoEspacio = "normal",
-                    libre = estaLibre))
+                    numCampo=numCampo,
+                    infoVehiculo=infoVehiculoTupla,
+                    estadiaEspacio=estadiaEspacio,
+                    pagoEspacio=pagoEspacio,
+                    tipoEspacio="normal",
+                    libre=estaLibre))
                 campoActual += 1
             # Se crea el archivo que contendra de forma binaria la base de datos del parqueo
             try:
