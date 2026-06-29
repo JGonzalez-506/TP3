@@ -17,6 +17,7 @@ from tkinter import ttk
 import qrcode
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from reportlab.lib import colors
 
 class vehiculo:
     def __init__(self, datosDict):
@@ -1124,7 +1125,7 @@ class interfazParqueo:
             self.venReportes,
             text="Cierre Diario",
             font=fuenteBoton,
-            command=lambda: print("Reporte 1")
+            command=self.ejecutarCierreDiario
         )
         self.btnCierreDiario.pack(anchor="w", padx=margenIzquierdo, pady=8)
         self.btnCierrePago = tk.Button(
@@ -1148,3 +1149,128 @@ class interfazParqueo:
             command=self.venReportes.destroy
         )
         self.btnRegresarReportes.pack(anchor="w", padx=margenIzquierdo, pady=(8, 30))
+
+    def ejecutarCierreDiario(self):
+        if not self.hayBaseDatos or not self.baseDatosParqueos:
+            messagebox.showwarning("Cierre Diario", "No hay una base de datos activa para cerrar.")
+            return
+        vehiculosOcupados = [p for p in self.baseDatosParqueos if not p.libre]
+        if not vehiculosOcupados:
+            messagebox.showinfo("Cierre Diario", "El parqueo ya está vacío. No hay transacciones pendientes.")
+            return
+        # Diccionario para facturación aleatoria
+        diccPagosInverso = {1: "Efectivo", 2: "SINPE", 3: "Tarjeta"}
+        totales = {"Efectivo": 0.0, "SINPE": 0.0, "Tarjeta": 0.0}
+        datosTabla = []
+        objetoSalida = datetime.now()
+        fSalidaObjStr = objetoSalida.strftime("%Y-%m-%d %H:%M:%S")
+        fSalidaMostrar = objetoSalida.strftime("%d/%m/%y %H:%M:%S")
+        for parqueo in vehiculosOcupados:
+            placa, marca, color, tipo = parqueo.info
+            horaEntrada = parqueo.estadia[1]
+            try:
+                objetoEntrada = datetime.strptime(horaEntrada, "%Y-%m-%d %H:%M:%S")
+                fEntradaMostrar = objetoEntrada.strftime("%d/%m/%y %H:%M:%S")
+            except:
+                objetoEntrada = objetoSalida
+                fEntradaMostrar = horaEntrada
+            diferencia = objetoSalida - objetoEntrada
+            minutosTranscurridos = diferencia.total_seconds() / 60
+            if minutosTranscurridos <= self.tiempoGracia:
+                montoFinal = 0
+            else:
+                minutosCobrables = minutosTranscurridos - self.tiempoGracia
+                horasACobrar = math.ceil(minutosCobrables / 60)
+                montoFinal = horasACobrar * self.montoHora
+            idPagoAleatorio = random.choice([1, 2, 3])
+            textoPago = diccPagosInverso[idPagoAleatorio]
+            totales[textoPago] += montoFinal
+            fEntradaFactura = objetoEntrada.strftime("%d-%m-%Y %H:%M:%S")
+            fSalidaFactura = objetoSalida.strftime("%d-%m-%Y %H:%M:%S")
+            self.crearFacturaPDF(parqueo.id, placa, marca, color, fEntradaFactura, fSalidaFactura, montoFinal,
+                                 idPagoAleatorio)
+            datosTabla.append([parqueo.id, placa, fEntradaMostrar, fSalidaMostrar, textoPago, f"₡{montoFinal}"])
+            parqueo.libre = True
+            parqueo.info = ("", "", "", "")
+            parqueo.estadia = [parqueo.id, "", ""]
+            parqueo.pago = (0, 0)
+        try:
+            with open("bdParqueo.txt", "wb") as archivoBinario:
+                pickle.dump(self.baseDatosParqueos, archivoBinario)
+        except:
+            print("Error al guardar la base de datos de manera binaria.")
+        fechaReporte = datetime.now().strftime("%d-%m-%Y_%H-%M")
+        nombreReporte = f"reporteCierreDiaro_{fechaReporte}.pdf"
+        try:
+            c = canvas.Canvas(nombreReporte, pagesize=letter)
+            c_primario = colors.HexColor("#1B365D")  # Azul Marino
+            c_blanco = colors.HexColor("#FFFFFF")  # Blanco
+            c_oscuro = colors.HexColor("#333333")  # Gris Oscuro Textos
+            c.setFillColor(c_primario)
+            c.setFont("Helvetica-Bold", 22)
+            c.drawString(50, 730, "REPORTE DE CIERRE DIARIO")
+            c.setFillColor(c_oscuro)
+            c.setFont("Helvetica", 12)
+            c.drawString(50, 705, f"Fecha de emisión: {datetime.now().strftime('%d/%m/%Y %I:%M %p')}")
+            c.setFillColor(c_primario)
+            c.rect(50, 675, 510, 20, fill=1, stroke=0)  # Fondo azul del encabezado
+            c.setFillColor(c_blanco)
+            c.setFont("Helvetica-Bold", 12)  # (REGLA TAMAÑO 2: 12pts)
+            #Coordenadas para las columnas
+            c.drawString(55, 680, "Ubicación")
+            c.drawString(115, 680, "Placa")
+            c.drawString(175, 680, "Hora Entrada")
+            c.drawString(275, 680, "Hora Salida")
+            c.drawString(385, 680, "Tipo Pago")
+            c.drawString(485, 680, "Monto")
+            c.setFillColor(c_oscuro)
+            c.setFont("Helvetica", 9)
+            ejeY = 660
+            for fila in datosTabla:
+                if ejeY < 150:
+                    c.showPage()
+                    ejeY = 730
+                    c.setFillColor(c_oscuro)
+                    c.setFont("Helvetica", 9)
+                c.drawString(55, ejeY, str(fila[0]))
+                c.drawString(115, ejeY, str(fila[1]))
+                c.drawString(175, ejeY, str(fila[2]))
+                c.drawString(275, ejeY, str(fila[3]))
+                c.drawString(385, ejeY, str(fila[4]))
+                c.drawString(485, ejeY, str(fila[5]))
+                c.setStrokeColor(c_oscuro)
+                c.setLineWidth(0.5)
+                c.line(50, ejeY - 5, 560, ejeY - 5)
+                ejeY -= 20
+            if ejeY < 150:
+                c.showPage()
+                ejeY = 750
+            ejeY -= 20
+            c.setFillColor(c_primario)
+            c.setFont("Helvetica-Bold", 12)
+            c.drawString(50, ejeY, "RESUMEN DE RECAUDACIÓN DEL DÍA")
+            ejeY -= 25
+            c.setFillColor(c_oscuro)
+            c.setFont("Helvetica", 9)
+            c.drawString(50, ejeY, "Efectivo:")
+            c.drawString(150, ejeY, f"₡{totales['Efectivo']:,.2f}")
+            ejeY -= 15
+            c.drawString(50, ejeY, "SINPE:")
+            c.drawString(150, ejeY, f"₡{totales['SINPE']:,.2f}")
+            ejeY -= 15
+            c.drawString(50, ejeY, "Tarjeta:")
+            c.drawString(150, ejeY, f"₡{totales['Tarjeta']:,.2f}")
+            ejeY -= 20
+            montoTotal = sum(totales.values())
+            c.setFont("Helvetica-Bold", 12)
+            c.setFillColor(c_primario)
+            c.drawString(50, ejeY, "TOTAL ACUMULADO:")
+            c.drawString(180, ejeY, f"₡{montoTotal:,.2f}")
+
+            c.save()
+
+            messagebox.showinfo("Cierre Exitoso",
+                                f"Se procesaron {len(vehiculosOcupados)} vehículos.\n"
+                                f"Espacios liberados y reporte guardado como:\n{nombreReporte}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Problema al generar reporte: {e}")
