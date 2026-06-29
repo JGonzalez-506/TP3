@@ -167,13 +167,6 @@ class interfazParqueo:
                                   font=fuenteBoton,
                                   command=self.abrirVerEstacionamiento)
         self.botonVer.pack(anchor="w", padx=margenIzquierdo, pady=8)
-        self.botonFacturar = tk.Button(self.ventana,
-                                       text="Facturar 1 espacio",
-                                       font=fuenteBoton,
-                                       command=lambda: print(f"opción 3"))
-        self.botonFacturar.pack(anchor="w",
-                                padx=margenIzquierdo,
-                                pady=8)
         self.botonReportes = tk.Button(self.ventana,
                                        text="Reportes",
                                        font=fuenteBoton,
@@ -206,7 +199,6 @@ class interfazParqueo:
             estado = "disabled"
         self.botonObtener.config(state=estado)
         self.botonVer.config(state="normal")
-        self.botonFacturar.config(state=estado)
         self.botonReportes.config(state=estado)
         self.botonAcerca.config(state=estado)
         # Estas dos opciones siempre quedan disponibles
