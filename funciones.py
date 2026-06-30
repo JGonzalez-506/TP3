@@ -108,6 +108,14 @@ class interfazParqueo:
                 if isinstance(listaCargada, list) and len(listaCargada) > 0:
                     self.baseDatosParqueos = listaCargada
                     self.totalParqueos = len(listaCargada)
+                    horaActual = datetime.now().hour
+                    if horaActual >= 21 or horaActual < 7:
+                        for parqueo in self.baseDatosParqueos:
+                            parqueo.libre = True
+                            parqueo.info = ("", "", "", "")
+                            parqueo.estadia = [parqueo.id, "", ""]
+                            parqueo.pago = (0, 0)
+                        return True
                     vouchersCreados = 0
                     for parqueo in self.baseDatosParqueos:
                         if not parqueo.libre:
@@ -275,6 +283,11 @@ class interfazParqueo:
         self.botonRegresarConfig.pack(pady=(0, 20))
 
     def verificarYCrear(self):
+        horaActual = datetime.now().hour
+        if horaActual >= 21 or horaActual < 7:
+            messagebox.showwarning("Horario Restringido", 
+                                   "No se puede configurar o generar el estacionamiento entre las 9pm y las 7am.")
+            return
         # Se validan y guardan los datos de configuración en memoria (Tiempo de gracia y Monto)
         try:
             gracia = int(self.entradaGracia.get())
@@ -510,23 +523,28 @@ class interfazParqueo:
         self.mostrarEspaciosPaginaActual()
 
     def mostrarEspaciosParqueo(self):
+        horaActual = datetime.now().hour
+        if horaActual >= 21 or horaActual < 7:
+            for fila in range(len(self.matrizParqueos)):
+                for columna in range(len(self.matrizParqueos[fila])):
+                    self.matrizParqueos[fila][columna] = "Libre"
         mensTitulo = tk.Label(self.venParqueo,
                               text="Espacios vacíos y ocupados del Parqueo",
-                              font=("Arial", 16, "bold"),
+                              font=("Arial", 16),
                               bg=self.colorFondoCrema,
                               fg=self.colorTexto)
         mensTitulo.grid(row=0, column=0, columnspan=11, pady=(15, 0))
         # Muestra el mensaje de la página actual y la cantidad de páginas
         self.mensSubtitulo = tk.Label(self.venParqueo,
                                       text="",
-                                      font=("Arial", 11, "italic"),
+                                      font=("Arial", 11),
                                       bg=self.colorFondoCrema,
                                       fg="#595959")
         self.mensSubtitulo.grid(row=1, column=0, columnspan=11, pady=(2, 15))
         # Flecha Izquierda
         self.botonIzquierda = tk.Button(self.venParqueo,
                                         text="◀",
-                                        font=("Arial", 22, "bold"),
+                                        font=("Arial", 22),
                                         bg=self.colorFlechas,
                                         fg="white",
                                         relief="flat",
@@ -537,7 +555,7 @@ class interfazParqueo:
         # Flecha Derecha
         self.botonDerecha = tk.Button(self.venParqueo,
                                       text="▶",
-                                      font=("Arial", 22, "bold"),
+                                      font=("Arial", 22),
                                       bg=self.colorFlechas,
                                       fg="white",
                                       relief="flat",
@@ -545,7 +563,22 @@ class interfazParqueo:
                                       height=5,
                                       command=self.paginaSiguiente)
         self.botonDerecha.grid(row=2, column=10, rowspan=5, padx=(15, 20), sticky="ns")
-        # Boton Regresar, debajo de todo el contenido del parqueo
+        # Baño
+        self.botonBanno = tk.Button(self.venParqueo,
+                                    text="Baño",
+                                    font=("Arial", 11),
+                                    bg="#A0A0A0",
+                                    width=11,
+                                    height=5)
+        self.botonBanno.place(x=450, y=550)
+        # Casetilla
+        self.botonCasetilla = tk.Button(self.venParqueo,
+                                        text="Casetilla",
+                                        font=("Arial", 11),
+                                        bg="#A0A0A0",
+                                        width=11,
+                                        height=5)
+        self.botonCasetilla.place(x=600, y=550)
         self.botonRegresarParqueo = tk.Button(self.venParqueo,
                                               text="Regresar",
                                               font=("Arial", 11),
@@ -736,14 +769,16 @@ class interfazParqueo:
         self.mostrarEspaciosPaginaActual()
 
     def clickEspacio(self, parqueoEspecifico):
+        horaActual = datetime.now().hour
+        if horaActual >= 21 or horaActual < 7:
+            messagebox.showwarning("Horario No Permitido", "El parqueo está cerrado de noche. No se pueden registrar o retirar vehículos hasta las 7am.")
+            return
         esLibre = parqueoEspecifico.libre
-
         # Listas de opciones requeridas
         listaMarcas = ["Toyota", "Hyundai", "Nissan", "Suzuki", "Honda", "Mitsubishi", "Kia", "Ford", "Chevrolet",
                        "Mazda", "Isuzu", "BYD", "Geely", "BMW", "Volkswagen"]
         listaColores = ["Blanco", "Negro", "Gris", "Plata", "Rojo", "Azul", "Verde", "Dorado", "Beige", "Bronce"]
         listaTipos = ["Sedan", "SUV", "Pick-up", "Hatchback", "Microbus"]
-
         if esLibre:
             placa = ""
             marca = ""
@@ -1267,6 +1302,11 @@ class interfazParqueo:
         btnRegresar.place(x=235, y=540)
 
     def abrirVentanaReportes(self):
+        horaActual = datetime.now().hour
+        if horaActual >= 21 or horaActual < 7:
+            messagebox.showwarning("Horario Restringido", 
+                                   "No se puede generar reportes del estacionamiento entre las 9pm y las 7am, ya que no hay vehiculos.")
+            return
         self.venReportes = tk.Toplevel(self.ventana)
         self.venReportes.title("Reportes")
         self.venReportes.geometry("400x350")
