@@ -5,21 +5,22 @@
 
 # importaciones
 import re
-import tkinter as tk
-from tkinter import messagebox
-import pickle
-import json
-import requests
-import random
+import csv
 import math
-from datetime import datetime
-from tkinter import ttk
+import json
 import qrcode
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-import xml.etree.ElementTree as generadorXML
-from xml.dom import minidom
+import pickle
+import random
+import requests
+import tkinter as tk
+from tkinter import ttk
+from tkinter import messagebox
+from datetime import datetime
 from reportlab.lib import colors
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from xml.dom import minidom
+import xml.etree.ElementTree as generadorXML
 
 class vehiculo:
     def __init__(self, datosDict):
@@ -83,6 +84,8 @@ class interfazParqueo:
         self.venConfig = None
         self.tiempoGracia = 0
         self.montoHora = 0
+        #Se inicializa un registro del último cierre para poder trabajar con los datos en el .csv
+        self.datosUltimoCierre = []
         # Decidimos que lo mejor que se podia hacer para poder guardas las configuraciones en segundo plano era hacer un pequeño json
         # por aparte llamado configuracion.json el cual almacena el tiempo de gracia, precio por hota y cantidad de espacios
         self.cargarConfiguracionExistente()
@@ -1334,7 +1337,7 @@ class interfazParqueo:
             self.venReportes,
             text="Exportar Cierre Diario a CSV",
             font=fuenteBoton,
-            command=lambda: print("Reporte 3")
+            command=self.exportarCierreCSV
         )
         self.btnExportarCSV.pack(anchor="w", padx=margenIzquierdo, pady=8)
         self.btnRegresarReportes = tk.Button(
@@ -1476,6 +1479,9 @@ class interfazParqueo:
 
             c.save()
 
+            #Se guardan los datos para el .csv
+            self.datosUltimoCierre = datosTabla
+
             try:
                 with open("historialPagos.json", "w", encoding="utf-8") as f:
                     json.dump([], f)
@@ -1486,3 +1492,21 @@ class interfazParqueo:
                                 f"Espacios liberados y reporte guardado como:\n{nombreReporte}")
         except Exception as e:
             messagebox.showerror("Error", f"Problema al generar reporte: {e}")
+
+    def exportarCierreCSV(self):
+        # Verifica si existe información del último cierre diario (si ya se ejecutó el reporte 1)
+        if len(self.datosUltimoCierre) == 0:
+            messagebox.showwarning("Aviso", "Primero debe ejecutar el 'Cierre Diario' para poder exportarlo a CSV.")
+            return
+
+        fechaReporte = datetime.now().strftime("%d-%m-%Y_%H-%M")
+        nombreArchivo = f"reporteCierreDiario_{fechaReporte}.csv"
+        try:
+            with open(nombreArchivo, mode="w", newline="", encoding="utf-8-sig") as archivoCSV:
+                escritor = csv.writer(archivoCSV, delimiter=";")    #";" separa las columnas para Excel
+                for fila in self.datosUltimoCierre:
+                    escritor.writerow(fila)
+            messagebox.showinfo("Exportación Exitosa",
+                                f"Se ha exportado el cierre diario a CSV para Excel en el archivo:\n{nombreArchivo}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Ocurrió un problema al exportar el archivo CSV: {e}")
