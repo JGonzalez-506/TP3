@@ -17,6 +17,8 @@ from tkinter import ttk
 import qrcode
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+import xml.etree.ElementTree as generadorXML
+from xml.dom import minidom
 from reportlab.lib import colors
 
 class vehiculo:
@@ -106,6 +108,14 @@ class interfazParqueo:
                 if isinstance(listaCargada, list) and len(listaCargada) > 0:
                     self.baseDatosParqueos = listaCargada
                     self.totalParqueos = len(listaCargada)
+                    horaActual = datetime.now().hour
+                    if horaActual >= 21 or horaActual < 7:
+                        for parqueo in self.baseDatosParqueos:
+                            parqueo.libre = True
+                            parqueo.info = ("", "", "", "")
+                            parqueo.estadia = [parqueo.id, "", ""]
+                            parqueo.pago = (0, 0)
+                        return True
                     vouchersCreados = 0
                     for parqueo in self.baseDatosParqueos:
                         if not parqueo.libre:
@@ -181,7 +191,7 @@ class interfazParqueo:
         self.botonAcerca = tk.Button(self.ventana,
                                      text="Acerca de",
                                      font=fuenteBoton,
-                                     command=lambda: print(f"opción 6"))
+                                     command=self.abrirVentanaAcercaDe)
         self.botonAcerca.pack(anchor="w", padx=margenIzquierdo, pady=8)
         self.botonSalir = tk.Button(self.ventana,
                                     text="Salir",
@@ -201,7 +211,7 @@ class interfazParqueo:
         self.botonObtener.config(state=estado)
         self.botonVer.config(state="normal")
         self.botonReportes.config(state=estado)
-        self.botonAcerca.config(state=estado)
+        self.botonAcerca.config(state="normal")
         # Estas dos opciones siempre quedan disponibles
         self.botonConfig.config(state="normal")
         self.botonSalir.config(state="normal")
@@ -227,7 +237,7 @@ class interfazParqueo:
                                             bg=self.colorFondoCrema)
         mensConfiguracionParqueo.pack(pady=20)
         mensTamannoEstacionamiento = tk.Label(self.venConfig,
-                                              text="Tamaño del estacionamiento (1-75):",
+                                              text="Tamaño del estacionamiento:",
                                               bg=self.colorFondoCrema,
                                               font=("Arial", 12))
         mensTamannoEstacionamiento.pack(pady=(10, 5))
@@ -273,6 +283,11 @@ class interfazParqueo:
         self.botonRegresarConfig.pack(pady=(0, 20))
 
     def verificarYCrear(self):
+        horaActual = datetime.now().hour
+        if horaActual >= 21 or horaActual < 7:
+            messagebox.showwarning("Horario Restringido", 
+                                   "No se puede configurar o generar el estacionamiento entre las 9pm y las 7am.")
+            return
         # Se validan y guardan los datos de configuración en memoria (Tiempo de gracia y Monto)
         try:
             gracia = int(self.entradaGracia.get())
@@ -325,8 +340,15 @@ class interfazParqueo:
             messagebox.showwarning("Datos Inválidos", "Por favor, ingrese un número entero válido.")
             return
         cantidad = int(textoUsuario)
-        # Todavia tenemos dudas de cual es el minimo y el maximo de estacionamientos, de momento, este es el rango que pensamos
-        if 1 <= cantidad <= 75:
+        incluyeElectrico = messagebox.askyesno("Vehículo Eléctrico",
+                                               "¿Desea incorporar un espacio para vehículos eléctricos?")
+        
+        # Limite minimo de 4 si requiere electrico (2 disc + 1 elec + 1 normal), 3 si no (2 disc + 0 elec + 1 normal)
+        if incluyeElectrico:
+            minimoRequerido = 4  
+        else:
+            minimoRequerido = 3
+        if cantidad >= minimoRequerido:
             # Se cualculan cuantos espacios del total se veran reflejados en la interfaz de espacios segun su tipo(normal, discapacitado o electrico)
             datosDescargados = self.guardarDatosParqueo(cantidad, "parqueo.json")
             diccionarioMasivo = {}
@@ -346,8 +368,6 @@ class interfazParqueo:
             cantDiscapacidad = math.ceil(cantidad * 0.05)  # Se redondea hacia arriba el 5% de los espacios para discapacitados para que no queden en decimales
             if cantDiscapacidad < 2:
                 cantDiscapacidad = 2
-            incluyeElectrico = messagebox.askyesno("Vehículo Eléctrico",
-                                                   "¿Desea incorporar un espacio para vehículos eléctricos?")
             if incluyeElectrico:
                 cantElectrico = 1
             else:
@@ -357,47 +377,68 @@ class interfazParqueo:
             # Se crean y se les asignan los datos de los vehiculos y el numero de campo que ocupan los espacios para discapacitados
             for indice in range(cantDiscapacidad):
                 numCampo = f"C{campoActual}"
-                infoVehiculoTupla = ("", "", "", "")
-                estadiaEspacio = [numCampo, "", ""]
-                estaLibre = True
+                horaEntrada = self.generarHoraEntradaAleatoria()
+                placa, marca, color, tipo = "", "", "", "discapacidad"
+                if placaVehiculo < len(datosDescargados):
+                    infoVehiculo = datosDescargados[placaVehiculo]
+                    placa = infoVehiculo.get("placa")
+                    marca = infoVehiculo.get("marca")
+                    color = infoVehiculo.get("color")
+                    tipo = infoVehiculo.get("tipo")
+                    placaVehiculo += 1
+                infoVehiculo = (placa, marca, color, tipo)
+                estadiaEspacio = [numCampo, horaEntrada, ""]
                 pagoEspacio = (0, 0)
                 parqueosGenerados.append(espacioParqueo(
-                    numCampo=numCampo,
-                    infoVehiculo=infoVehiculoTupla,
-                    estadiaEspacio=estadiaEspacio,
-                    pagoEspacio=pagoEspacio,
-                    tipoEspacio="discapacidad",
-                    libre=estaLibre))
+                    numCampo = numCampo,
+                    infoVehiculo = infoVehiculo,
+                    estadiaEspacio = estadiaEspacio,
+                    pagoEspacio = pagoEspacio,
+                    tipoEspacio = "discapacidad",
+                    libre = True))
+                if placa:  # Verifica que el espacio sí recibió un vehículo para crear un voucher
+                    self.crearVoucherPDF(numCampo, placa, marca, color, tipo, horaEntrada)
+                    vouchersGeneradosAPI += 1
                 campoActual += 1
             # Si el usuario confimara que quiere un espacio para un vehiculo electrico, se crea y se asignan los datos del vehiculo y el numero de campo que ocupara el espacio
             if incluyeElectrico:
                 numCampo = f"C{campoActual}"
-                infoVehiculoTupla = ("", "", "", "")
-                estadiaEspacio = [numCampo, "", ""]
-                estaLibre = True
-                pagoEspacio = (0, 0)
+                horaEntrada = self.generarHoraEntradaAleatoria()
+                placa, marca, color, tipo = "", "", "", "electrico"
+                if placaVehiculo < len(datosDescargados):
+                    infoVehiculo = datosDescargados[placaVehiculo]
+                    placa = infoVehiculo.get("placa")
+                    marca = infoVehiculo.get("marca")
+                    color = infoVehiculo.get("color")
+                    tipo = infoVehiculo.get("tipo")
+                    placaVehiculo += 1
+                infoVehiculo = (placa, marca, color, tipo)
+                estadiaEspacio = [numCampo, horaEntrada, ""]
+                pagoEstadia = (0, 0)
                 parqueosGenerados.append(espacioParqueo(
-                    numCampo=numCampo,
-                    infoVehiculo=infoVehiculoTupla,
-                    estadiaEspacio=estadiaEspacio,
-                    pagoEspacio=pagoEspacio,
-                    tipoEspacio="electrico",
-                    libre=estaLibre))  # <-- Corregido para ser dinámico
+                    numCampo = numCampo,
+                    infoVehiculo = infoVehiculo,
+                    estadiaEspacio = estadiaEspacio,
+                    pagoEspacio = pagoEstadia,
+                    tipoEspacio = "electrico",
+                    libre=True))
+                if placa:  # Verifica que el espacio sí recibió un vehículo para crear un voucher
+                    self.crearVoucherPDF(numCampo, placa, marca, color, tipo, horaEntrada)
+                    vouchersGeneradosAPI += 1
                 campoActual += 1
             # Se calculan cuantos espacios normales quedaran ocupados y cuantos quedaran libres, acomodandolos de manera aleatoria
             espaciosRestantes = cantidad - cantDiscapacidad - cantElectrico
             cantLibresNormales = math.ceil(
                 espaciosRestantes * 0.05)  # Se redondea hacia arriba el 5% de los espacios normales libres para que no quede en decimales
             cantOcupadosNormales = espaciosRestantes - cantLibresNormales
-            estadosNormales = [True] * cantLibresNormales + [
-                False] * cantOcupadosNormales  # Se crea una lista con el estado de todos los parqueos normales
-            random.shuffle(
-                estadosNormales)  # random.shuffle permite tener aleatoriedad a la hora de visualizar los espacios normales del parqueo
+            estadosNormales = [True] * cantLibresNormales + [False] * cantOcupadosNormales  # Se crea una lista con el estado de todos los parqueos normales
+            random.shuffle(estadosNormales)  # random.shuffle permite tener aleatoriedad a la hora de visualizar los espacios normales del parqueo
             # Se crean y se les asignan los datos de los vehiculos y el numero de campo que ocupan los espacios normales
             for indice in range(espaciosRestantes):
                 estaLibre = estadosNormales[indice]
                 numCampo = f"C{campoActual}"
                 if not estaLibre:
+                    horaEntrada = self.generarHoraEntradaAleatoria()
                     placa, marca, color, tipo = "", "", "", "normal"
                     if placaVehiculo < len(datosDescargados):
                         infoVehiculo = datosDescargados[placaVehiculo]
@@ -406,27 +447,22 @@ class interfazParqueo:
                         color = infoVehiculo.get("color")
                         tipo = infoVehiculo.get("tipo")
                         placaVehiculo += 1
-                    if placa:
-                        horaEntrada = self.generarHoraEntradaAleatoria()
-                        infoVehiculoTupla = (placa, marca, color, tipo)
-                        estadiaEspacio = [numCampo, horaEntrada, ""]
-                        self.crearVoucherPDF(numCampo, placa, marca, color, tipo, horaEntrada)
-                        vouchersGeneradosAPI += 1
-                    else:
-                        estaLibre = True
-                        infoVehiculoTupla = ("", "", "", "")
-                        estadiaEspacio = [numCampo, "", ""]
+                    infoVehiculo = (placa, marca, color, tipo)
+                    estadiaEspacio = [numCampo, horaEntrada, ""]
+                    self.crearVoucherPDF(numCampo, placa, marca, color, tipo, horaEntrada)
+                    vouchersGeneradosAPI += 1
                 else:
-                    infoVehiculoTupla = ("", "", "", "")
+                    # Si está libre, van vacíos
+                    infoVehiculo = ("", "", "", "")
                     estadiaEspacio = [numCampo, "", ""]
-                pagoEspacio = (0, 0)
+                    pagoEspacio = (0, 0)
                 parqueosGenerados.append(espacioParqueo(
-                    numCampo=numCampo,
-                    infoVehiculo=infoVehiculoTupla,
-                    estadiaEspacio=estadiaEspacio,
-                    pagoEspacio=pagoEspacio,
-                    tipoEspacio="normal",
-                    libre=estaLibre))
+                    numCampo = numCampo,
+                    infoVehiculo = infoVehiculo,
+                    estadiaEspacio = estadiaEspacio,
+                    pagoEspacio = pagoEspacio,
+                    tipoEspacio = "normal",
+                    libre = estaLibre))
                 campoActual += 1
             # Se crea el archivo que contendra de forma binaria la base de datos del parqueo
             try:
@@ -453,7 +489,7 @@ class interfazParqueo:
             messagebox.showinfo("Éxito", "Base de datos generada y configuración inicial guardada.\n\n"
                                 f"Se han generando {vouchersGeneradosAPI} vouchers de ingreso.")
         else:
-            messagebox.showwarning("Rango Incorrecto", "La cantidad debe estar entre 1 y 75 espacios.")
+            messagebox.showwarning("Rango Incorrecto", f"La cantidad debe ser de al menos {minimoRequerido} espacios para esta configuracion")
 
     def cargarConfiguracionExistente(self):
         try:
@@ -487,23 +523,28 @@ class interfazParqueo:
         self.mostrarEspaciosPaginaActual()
 
     def mostrarEspaciosParqueo(self):
+        horaActual = datetime.now().hour
+        if horaActual >= 21 or horaActual < 7:
+            for fila in range(len(self.matrizParqueos)):
+                for columna in range(len(self.matrizParqueos[fila])):
+                    self.matrizParqueos[fila][columna] = "Libre"
         mensTitulo = tk.Label(self.venParqueo,
                               text="Espacios vacíos y ocupados del Parqueo",
-                              font=("Arial", 16, "bold"),
+                              font=("Arial", 16),
                               bg=self.colorFondoCrema,
                               fg=self.colorTexto)
         mensTitulo.grid(row=0, column=0, columnspan=11, pady=(15, 0))
         # Muestra el mensaje de la página actual y la cantidad de páginas
         self.mensSubtitulo = tk.Label(self.venParqueo,
                                       text="",
-                                      font=("Arial", 11, "italic"),
+                                      font=("Arial", 11),
                                       bg=self.colorFondoCrema,
                                       fg="#595959")
         self.mensSubtitulo.grid(row=1, column=0, columnspan=11, pady=(2, 15))
         # Flecha Izquierda
         self.botonIzquierda = tk.Button(self.venParqueo,
                                         text="◀",
-                                        font=("Arial", 22, "bold"),
+                                        font=("Arial", 22),
                                         bg=self.colorFlechas,
                                         fg="white",
                                         relief="flat",
@@ -514,7 +555,7 @@ class interfazParqueo:
         # Flecha Derecha
         self.botonDerecha = tk.Button(self.venParqueo,
                                       text="▶",
-                                      font=("Arial", 22, "bold"),
+                                      font=("Arial", 22),
                                       bg=self.colorFlechas,
                                       fg="white",
                                       relief="flat",
@@ -522,7 +563,22 @@ class interfazParqueo:
                                       height=5,
                                       command=self.paginaSiguiente)
         self.botonDerecha.grid(row=2, column=10, rowspan=5, padx=(15, 20), sticky="ns")
-        # Boton Regresar, debajo de todo el contenido del parqueo
+        # Baño
+        self.botonBanno = tk.Button(self.venParqueo,
+                                    text="Baño",
+                                    font=("Arial", 11),
+                                    bg="#A0A0A0",
+                                    width=11,
+                                    height=5)
+        self.botonBanno.place(x=450, y=550)
+        # Casetilla
+        self.botonCasetilla = tk.Button(self.venParqueo,
+                                        text="Casetilla",
+                                        font=("Arial", 11),
+                                        bg="#A0A0A0",
+                                        width=11,
+                                        height=5)
+        self.botonCasetilla.place(x=600, y=550)
         self.botonRegresarParqueo = tk.Button(self.venParqueo,
                                               text="Regresar",
                                               font=("Arial", 11),
@@ -713,14 +769,16 @@ class interfazParqueo:
         self.mostrarEspaciosPaginaActual()
 
     def clickEspacio(self, parqueoEspecifico):
+        horaActual = datetime.now().hour
+        if horaActual >= 21 or horaActual < 7:
+            messagebox.showwarning("Horario No Permitido", "El parqueo está cerrado de noche. No se pueden registrar o retirar vehículos hasta las 7am.")
+            return
         esLibre = parqueoEspecifico.libre
-
         # Listas de opciones requeridas
         listaMarcas = ["Toyota", "Hyundai", "Nissan", "Suzuki", "Honda", "Mitsubishi", "Kia", "Ford", "Chevrolet",
                        "Mazda", "Isuzu", "BYD", "Geely", "BMW", "Volkswagen"]
         listaColores = ["Blanco", "Negro", "Gris", "Plata", "Rojo", "Azul", "Verde", "Dorado", "Beige", "Bronce"]
         listaTipos = ["Sedan", "SUV", "Pick-up", "Hatchback", "Microbus"]
-
         if esLibre:
             placa = ""
             marca = ""
@@ -814,14 +872,12 @@ class interfazParqueo:
         tk.Label(ventanaInfoVehiculo,
                  text="Hora de entrada:",
                  bg=self.colorFondoCrema,
-                 font=("Arial", 10)).place(x=25,
-                                                                                                                  y=315)
+                 font=("Arial", 10)).place(x=25, y=315)
         entryEntrada = tk.Entry(ventanaInfoVehiculo,
                                 font=("Arial", 10))
         entryEntrada.insert(0, horaFormateada)
         entryEntrada.config(state="disabled")
         entryEntrada.place(x=25, y=338, width=230)
-
         # Botón dinámico: Cambia entre "Estacionar" y "Pagar"
         botonAccion = tk.Button(ventanaInfoVehiculo,
                                 text=textoBoton,
@@ -882,10 +938,10 @@ class interfazParqueo:
             diccionarioPagos = {"Efectivo": 1, "SINPE": 2, "Tarjeta": 3}
             idPago = diccionarioPagos[comboTipoPago.get()]
             placa, marca, color, tipoVehiculo = parqueoEspecifico.info
-            fEntrada = objetoEntrada.strftime("%d-%m-%Y %H:%M:%S")
-            fSalida = objetoSalida.strftime("%d-%m-%Y %H:%M:%S")
+            fechaEntrada = objetoEntrada.strftime("%d-%m-%Y %H:%M:%S")
+            fechaSalida = objetoSalida.strftime("%d-%m-%Y %H:%M:%S")
             # Intentar generar el PDF de la factura
-            exitoPDF = self.crearFacturaPDF(parqueoEspecifico.id, placa, marca, color, fEntrada, fSalida, montoFinal, idPago)
+            exitoPDF = self.crearFacturaPDF(parqueoEspecifico.id, placa, marca, color, fechaEntrada, fechaSalida, montoFinal, idPago)
             if exitoPDF:
                 #Se añade el vehículo al historial de pagos diarios
                 try:
@@ -908,10 +964,10 @@ class interfazParqueo:
                     print(f"Error crítico al escribir en historial_pagos.json: {e}")
                 # Modificar el estado del espacio para liberarlo
                 parqueoEspecifico.libre = True
-                parqueoEspecifico.info = ("", "", "", "")
-                parqueoEspecifico.estadia = [parqueoEspecifico.id, "", ""]
+                parqueoEspecifico.info = (placa, marca, color, tipoVehiculo)
+                parqueoEspecifico.estadia = [parqueoEspecifico.id, horaEntrada, fechaSalida]
                 parqueoEspecifico.pago = (montoFinal, idPago)
-                # Actualizar la base de datos binaria (.txt con pickle)
+                # Actualizar la base de datos binaria
                 try:
                     with open("bdParqueo.txt", "wb") as archivoBinario:
                         pickle.dump(self.baseDatosParqueos, archivoBinario)
@@ -930,13 +986,13 @@ class interfazParqueo:
         botonFinalizarPago.pack(pady=15)
 
     def crearFacturaPDF(self, idCampo, placa, marca, color, fechaEntrada, fechaSalida, monto, idPago):
-        # Formato solicitado: factura_#PLACA_DD-MM-AAAA_HH:mm.pdf
-        # Nota técnica: Windows prohíbe el carácter ':' en los nombres de archivos. 
-        # Reemplazamos los dos puntos de la hora por guiones bajos SOLO en el nombre del archivo para evitar crash.
+        # El nombre del voucher saldra con este formato: voucher_#PLACA_DD-MM-AAAA_HH:mm.pdf
+        # En windows no se puede usar los ':' en los nombres de archivos. 
+        # Reemplazamos los dos puntos de la hora por guiones bajos SOLO en el nombre del archivo para evitar ese problema.
         fechaParaNombre = fechaSalida.replace(":", "-").replace(" ", "_")
         nombreFactura = f"factura_{placa}_{fechaParaNombre}.pdf"
         diccTipoPago = {1: "Efectivo", 2: "SINPE", 3: "Tarjeta"}
-        textoPagoMostrar = diccTipoPago.get(idPago, "Desconocido")
+        textoPagoMostrar = diccTipoPago.get(idPago)
         # Contenido codificado del QR
         infoQR = (f"Campo: {idCampo}\n"
                   f"Placa: {placa}\n"
@@ -946,13 +1002,13 @@ class interfazParqueo:
                   f"Monto: ₡{monto}")
         # Generación del archivo QR temporal
         imgQR = qrcode.make(infoQR)
-        rutaQR = f"temp_qr_{placa}.png"
+        rutaQR = f"QRtemporal_{placa}.png"
         imgQR.save(rutaQR)
         try:
             # Creación del lienzo PDF
-            c = canvas.Canvas(nombreFactura, pagesize=letter)
+            cavasPdf = canvas.Canvas(nombreFactura, pagesize=letter)
             # Título del documento
-            c.drawString(50, 695, "COMPROBANTE DE COMPRA - ESTACIONAMIENTO")
+            cavasPdf.drawString(50, 695, "COMPROBANTE DE COMPRA - ESTACIONAMIENTO")
             # Estructuración de datos de estadía completos
             ejeY = 660
             lineasTexto = [f"Número de Campo: {idCampo}",
@@ -964,18 +1020,131 @@ class interfazParqueo:
                            f"Identificador de Pago: {textoPagoMostrar}",
                            f"Monto Total Cobrado: ₡{monto}"]
             for linea in lineasTexto:
-                c.drawString(50, ejeY, linea)
+                cavasPdf.drawString(50, ejeY, linea)
                 ejeY -= 20
             # Dibujar el código QR
             ejeY -= 140
-            c.setFont("Helvetica-Bold", 11)
-            c.drawString(50, ejeY + 125, "Código QR de Verificación:")
-            c.drawImage(rutaQR, 50, ejeY, width=110, height=110)
-            c.save()
+            cavasPdf.setFont("Helvetica-Bold", 11)
+            cavasPdf.drawString(50, ejeY + 125, "Código QR de Verificación:")
+            cavasPdf.drawImage(rutaQR, 50, ejeY, width=110, height=110)
+            cavasPdf.save()
             return True
-        except Exception as e:
-            messagebox.showerror("Error", f"No se pudo estructurar el PDF: {str(e)}")
+        except:
+            messagebox.showerror("Error", f"No se pudo estructurar el PDF")
             return False
+
+    def abrirVentanaReportes(self):
+        # Se esconde el menú principal temporalmente siguiendo tu estándar de diseño
+        self.ventana.withdraw()
+        # Crea la ventana secundaria de reportes
+        self.venReportes = tk.Toplevel(self.ventana)
+        self.venReportes.title("Menú de Reportes")
+        self.dimensionarVentana(self.venReportes, 480, 340)
+        self.venReportes.configure(bg=self.colorFondoCrema)
+        labelTitulo = tk.Label(self.venReportes,
+                               text="Reportes del Sistema",
+                               font=("Arial", 16),
+                               bg=self.colorFondoCrema,
+                               fg=self.colorTexto)
+        labelTitulo.pack(pady=20)
+        # Botón A: Cierre diario y facturación en masa (Deshabilitado de momento)
+        btnCierreMasa = tk.Button(self.venReportes,
+                                  text="Cierre diario y facturación en masa",
+                                  font=("Arial", 11),
+                                  width=35)
+                                  #command=lambda:)
+        btnCierreMasa.pack(pady=6)
+        # Botón B: Cierre por tipo de pago (Llama a la lógica XML solicitada)
+        btnCierreTipo = tk.Button(self.venReportes,
+                                  text="Cierre por tipo de pago",
+                                  font=("Arial", 11),
+                                  command=self.generarCierrePorTipoPago)
+        btnCierreTipo.pack(pady=6)
+        # Botón C: Exportar cierre diario a CSV (Deshabilitado de momento)
+        btnExportarCSV = tk.Button(self.venReportes,
+                                   text="Exportar cierre diario a CSV",
+                                   font=("Arial", 11))
+                                   #command=lambda:)
+        btnExportarCSV.pack(pady=6)
+        # Botón de escape para volver al menú principal
+        btnRegresar = tk.Button(self.venReportes,
+                                text="Regresar",
+                                font=("Arial", 11),
+                                command=lambda: self.cerrarVentanaSecundariaYRegresar(self.venReportes))
+        btnRegresar.pack(pady=20)
+
+    def generarCierrePorTipoPago(self):
+        # Listas de filtración local
+        pagosEfectivo = []
+        pagosSinpe = []
+        pagosTarjeta = []
+        # Se clasifica cada espacio según el número de pago (1 = Efectivo, 2 = SINPE, 3 = Tarjeta)
+        for parqueo in self.baseDatosParqueos:
+            monto, idPago = parqueo.pago
+            if idPago == 1:
+                pagosEfectivo.append(parqueo)
+            elif idPago == 2:
+                pagosSinpe.append(parqueo)
+            elif idPago == 3:
+                pagosTarjeta.append(parqueo)
+        # Si no se cuenta con ningún registro de los 3 tipos
+        if not pagosEfectivo and not pagosSinpe and not pagosTarjeta:
+            messagebox.showerror("Error", "No se ha podido realizar el reporte ya que no se cuentan con pagos de ningún tipo.")
+            return
+        # Se generan los subelementos para el XML
+        cierrePorTipoPago = generadorXML.Element("CierrePorTipoPago")
+        seccionEfectivo = generadorXML.SubElement(cierrePorTipoPago, "efectivo")
+        seccionSinpe = generadorXML.SubElement(cierrePorTipoPago, "sinpe")
+        seccionTarjeta = generadorXML.SubElement(cierrePorTipoPago, "tarjeta")
+        # Se insertan los registros ya planos en sus ramas
+        self.registrarAtributosPlanos(pagosEfectivo, seccionEfectivo)
+        self.registrarAtributosPlanos(pagosSinpe, seccionSinpe)
+        self.registrarAtributosPlanos(pagosTarjeta, seccionTarjeta)
+        # Se le da un faorma y almacenamiento legible (Pretty Print)
+        xmlBruto = generadorXML.tostring(cierrePorTipoPago, encoding="utf-8")
+        xmlParseado = minidom.parseString(xmlBruto)
+        xmlFormateado = xmlParseado.toprettyxml(indent="  ")
+        horaActual = datetime.now().strftime("%H-%M-%S")
+        nombreReportePorPago = f"cierre_por_tipo_pago_{horaActual}.xml"
+        try:
+            with open(nombreReportePorPago, "w") as archivoXml:
+                archivoXml.write(xmlFormateado)
+        except:
+            messagebox.showerror("Error de Escritura", f"No se pudo guardar el archivo XML")
+            return
+        # Se mostrara un message box dependiendo de si hay registros de pago en cierto tipos de pago
+        tiposDetectados = []
+        if pagosEfectivo: 
+            tiposDetectados.append("efectivo")
+        if pagosSinpe: 
+            tiposDetectados.append("SINPE")
+        if pagosTarjeta: 
+            tiposDetectados.append("Tarjeta")
+        if len(tiposDetectados) == 1:
+            mensajeAlerta = f"Se ha generado el reporte, solo que cuenta con pagos en {tiposDetectados[0]}."
+        elif len(tiposDetectados) == 2:
+            mensajeAlerta = f"Se ha generado el reporte, lo que se cuenta con pagos en {tiposDetectados[0]} y {tiposDetectados[1]}."
+        else:
+            mensajeAlerta = "Se ha generado el reporte con éxito, cuenta con pagos en efectivo, SINPE y Tarjeta."
+        messagebox.showinfo("Reporte Generado", mensajeAlerta)
+
+    def registrarAtributosPlanos(self, listaEspaciosPagados, elementoXmlPadre):
+        # Metodo auxiliar para plasmar los datos de forma plana en el XML
+        for espacioPagado in listaEspaciosPagados:
+            placa, marca, color, tipoVehiculo = espacioPagado.info
+            numCampo, horaEntrada, horaSalida = espacioPagado.estadia
+            monto, idPago = espacioPagado.pago
+            # Cada subelemento contiene la información total mapeada en un solo nivel plano
+            generadorXML.SubElement(elementoXmlPadre, "pago", {"numCampo": str(espacioPagado.id),
+                                                               "tipoEspacio": str(espacioPagado.tipoEspacio),
+                                                               "placa": str(placa),
+                                                               "marca": str(marca),
+                                                               "color": str(color),
+                                                               "tipoVehiculo": str(tipoVehiculo),
+                                                               "horaEntrada": str(horaEntrada),
+                                                               "horaSalida": str(horaSalida),
+                                                               "monto": str(monto),
+                                                               "idPago": str(idPago)})
 
     def procesarEstacionamiento(self, parqueoEspecifico, placa, marca, color, tipo, horaEntrada, ventanaInfoVehiculo):
         if not placa.strip() or not marca or not color or not tipo:
@@ -1112,7 +1281,32 @@ class interfazParqueo:
         except Exception as e:
             messagebox.showerror("Error", f"Ocurrió un problema al generar los vouchers: {e}")
 
+    def abrirVentanaAcercaDe(self):
+        ventanaAcerca = tk.Toplevel(self.ventana)
+        ventanaAcerca.title("Acerca de")
+        self.dimensionarVentana(ventanaAcerca, 600, 600)
+        ventanaAcerca.configure(bg=self.colorFondoCrema)
+        # Etiqueta con el mensaje de los creadores
+        mensAcercaDe = tk.Label(ventanaAcerca, 
+                              text="Estacionamiento Inteligente\n\nProyecto diseñado para ofrecer comodidad tanto para el\nusuario como para la sencilla administracion de los espacios\ndel estacionamineto de la empresas.\n\nPosee una interfaz grafica amigable con el usuario\npara observar de manera sencilla los espacios ocupados\ny libres del estacionamiento, ademas de poder\ngenerar reportes segun el usuario requiera.\n\nElaborado por Juan Gonzalez y Derian Segura", 
+                              font=("Arial", 13),
+                              bg=self.colorFondoCrema,
+                              fg=self.colorTexto)
+        mensAcercaDe.place(x=80, y=150)
+        # Botón para cerrar la ventana y regresar al menú principal
+        btnRegresar = tk.Button(ventanaAcerca, 
+                                text="Regresar al Menú", 
+                                font=("Arial", 10),
+                                command=ventanaAcerca.destroy,  # Destruye únicamente esta ventana secundaria
+                                activebackground="#D0BFAB")
+        btnRegresar.place(x=235, y=540)
+
     def abrirVentanaReportes(self):
+        horaActual = datetime.now().hour
+        if horaActual >= 21 or horaActual < 7:
+            messagebox.showwarning("Horario Restringido", 
+                                   "No se puede generar reportes del estacionamiento entre las 9pm y las 7am, ya que no hay vehiculos.")
+            return
         self.venReportes = tk.Toplevel(self.ventana)
         self.venReportes.title("Reportes")
         self.venReportes.geometry("400x350")
