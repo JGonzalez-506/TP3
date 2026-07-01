@@ -24,6 +24,13 @@ import xml.etree.ElementTree as generadorXML
 
 class vehiculo:
     def __init__(self, datosDict):
+        """
+        Funcionamiento: Inicializa un objeto de la clase vehiculo extrayendo, modelando y guardando de forma individual los atributos de un vehículo a partir de las llaves correspondientes dentro de un diccionario recibido como parámetro.
+        Entradas: 
+        datosDict (dict): Diccionario que contiene datos relacionados con el vehículo como "placa", "marca", "color", "hora de entrada" y "tipo".
+        Salidas:
+        Ninguna
+        """
         # Toma los datos por separado de cada vehiculo y los "modela"
         self.placa = datosDict.get("placa")
         self.marca = datosDict.get("marca")
@@ -32,6 +39,15 @@ class vehiculo:
         self.tipo = datosDict.get("tipo")
 
     def obtenerDatosVehiculos(self, llave, valorDefecto):
+        """
+        Funcionamiento: 
+        Crea un diccionario interno mapeando los atributos actuales del objeto vehículo para permitir la consulta flexible de datos específicos mediante una llave de búsqueda con un valor de respaldo por defecto.
+        Entradas: 
+        llave (str): La clave del dato que se desea recuperar (ej. "placa", "marca").
+        valorDefecto (any): El valor de retorno en caso de que la llave especificada no sea localizada en el diccionario.
+        Salidas: 
+        El valor asociado a la llave proporcionada o el valorDefecto en su ausencia.
+        """
         # Se crea un diccionario con los atributos de los vehiculos para que se pueda consultar por sus datos especificos
         datosVehiculos = {"placa": self.placa,
                           "marca": self.marca,
@@ -42,6 +58,19 @@ class vehiculo:
 
 class espacioParqueo:
     def __init__(self, numCampo, infoVehiculo, estadiaEspacio, pagoEspacio, tipoEspacio, libre):
+        """
+        Funcionamiento:
+        Inicializa un objeto de tipo espacioParqueo para gestionar e individualizar las propiedades correspondientes a cada espacio de estacionamiento.
+        Entradas:
+        numCampo (int/str): Identificador único numérico del campo.
+        infoVehiculo (tuple): Tupla o conjunto de datos sobre el vehículo estacionado.
+        estadiaEspacio (list): Lista que registra el identificador de ubicación junto con las horas de entrada y salida.
+        pagoEspacio (tuple): Estructura con la información referente al monto de cobro y el tipo de pago.
+        tipoEspacio (str): Define la categoría del espacio (ej. "normal", "discapacidad", "electrico").
+        libre (bool): Estado de ocupación actual del espacio (True si está disponible, False si está ocupado).
+        Salidas: 
+        Ninguna.
+        """
         # Se almacena los datos de los espacios invidualmente
         self.id= numCampo
         self.info = infoVehiculo
@@ -51,6 +80,14 @@ class espacioParqueo:
         self.libre = libre
 
     def obtenerDatosEspacio(self, llave, valorDefecto):
+        """
+        Funcionamiento: 
+        Construye un diccionario local con todos los atributos vigentes del espacio físico de parqueo, facilitando la consulta dinámica de sus componentes de manera segura.
+        Entradas:
+        llave (str): Propiedad que se desea consultar (ej. "numCampo", "libre").
+        valorDefecto (any): Respuesta a devolver si no existe la propiedad.
+        Salidas: * any: El valor correspondiente de la propiedad consultada o el valorDefecto.
+        """
         # Se crea un diccionario con los atributos de los estacionamiento para que se pueda consultar por sus datos especificos
         datosEspacios = {"numCampo": self.id,
                          "tipoEspacio": self.tipoEspacio,
@@ -62,6 +99,14 @@ class espacioParqueo:
 
 class interfazParqueo:
     def __init__(self, ventanaPrincipal):
+        """
+        Funcionamiento:
+        Constructor principal que configura la ventana raíz de la interfaz gráfica de usuario (Tkinter), inicializa las variables globales del negocio (tarifas, listas de valores por defecto para marcas, colores, tipos, configuraciones visuales) y carga los archivos iniciales del sistema.
+        Entradas: 
+        ventanaPrincipal (tk.Tk): Instancia raíz de la ventana creada por la interfaz.
+        Salidas:
+        Ninguna.
+        """
         # Almacenamos la ventana raíz dentro del objeto, funcionará como el Menú Principal
         self.ventana = ventanaPrincipal
         # Atributos de la aplicación
@@ -104,6 +149,16 @@ class interfazParqueo:
         self.mostrarMenuPrincipal()
 
     def dimensionarVentana(self, ventanaDestino, anchoVentana, altoVentana):
+        """
+        Funcionamiento:
+        Calcula las coordenadas de la pantalla del usuario para posicionar y redimensionar dinámicamente cualquier ventana secundaria o principal de forma centrada.
+        Entradas:
+        ventanaDestino (tk.Toplevel / tk.Tk): Ventana gráfica a la cual se le aplicarán los cambios.
+        anchoVentana (int): Ancho en píxeles solicitado.
+        altoVentana (int): Alto en píxeles solicitado.
+        Salidas:
+        Ninguna.
+        """
         anchoPantalla = ventanaDestino.winfo_screenwidth()
         altoPantalla = ventanaDestino.winfo_screenheight()
         posicionX = round((anchoPantalla / 2) - (anchoVentana / 2))
@@ -112,11 +167,28 @@ class interfazParqueo:
 
     #Funciones de conversión de datos (Id, marca, color, tipo de carro, tipo de pago)
     def formatearID(self, idEntero):
+        """
+        Funcionamiento:
+        Transforma un identificador numérico interno agregándole el prefijo de control estándar del parqueo (ej: convierte 5 en "C5").
+        Entradas:
+        idEntero (int/str): Número identificador del espacio.
+        Salidas:
+        str: ID formateado con la nomenclatura del sistema o el dato original en caso de error.
+        """
         try:
             return f"C{int(idEntero)}"
         except:
             return str(idEntero)
     def convertirATexto(self, listaReferencia, valorEntero):
+        """
+        Funcionamiento:
+        Transforma un índice entero en su representación textual basada en una lista indexada de referencia (como listas de marcas, colores o tipos).
+        Entradas: 
+        listaReferencia (list): Colección de cadenas ordenadas.
+        valorEntero (int/str): El índice numérico que representa el elemento (ajustado base 1).
+        Salidas: 
+        Cadena de caracteres correspondiente al texto en esa posición o un string vacío si ocurre un fallo.
+        """
         try:
             posicion = int(valorEntero)
             if posicion >= 1:
@@ -124,12 +196,29 @@ class interfazParqueo:
         except:
             return ""
     def convertirAEntero(self, listaReferencia, valorTexto):
+        """
+        Funcionamiento:
+        Realiza la operación inversa a la anterior, buscando un texto dentro de una lista de referencia para devolver su índice posicional basado en 1.
+        Entradas:
+        listaReferencia (list): Colección de cadenas.
+        valorTexto (str): Cadena de texto a buscar.
+        Salidas: 
+        int: Entero que representa la posición (+1) o 0 si el elemento no es hallado.
+        """
         try:
             return listaReferencia.index(valorTexto) + 1
         except:
             return 0
 
     def cargarBaseDatosExistente(self):
+        """
+        Funcionamiento:
+        Intenta deserializar el archivo binario bdParqueo.txt mediante pickle. Si lo logra, actualiza la base de datos de parqueos en memoria, verifica las restricciones de horario nocturno e inicializa/regenera los comprobantes PDF en caso de vehículos preexistentes.
+        Entradas:
+        Ninguna.
+        Salidas:
+        bool: True si la base de datos se encontró y leyó exitosamente, False si falló o no existía.
+        """
         try:
             with open("bdParqueo.txt", "rb") as archivoBinario:
                 listaCargada = pickle.load(archivoBinario)
@@ -165,6 +254,15 @@ class interfazParqueo:
         return False
 
     def guardarDatosParqueo(self, cantidad, nombreArchivo):
+        """
+        Funcionamiento:
+        Consume un servicio web externo (API de Mockaroo) para descargar un conjunto simulado de datos de vehículos de forma masiva, y posteriormente lo almacena localmente en formato estructurado JSON.
+        Entradas:
+        cantidad (int): Número de registros aleatorios a solicitar.
+        nombreArchivo (str): Ruta o nombre del archivo JSON de destino.
+        Salidas:
+        list/dict: Datos en formato JSON decodificados si la descarga fue exitosa, o None si hubo un error en la conexión.
+        """
         # Base url de la api de Mockaroo
         urlBase = "https://my.api.mockaroo.com/parqueo.json?key=95e5d290"
         apiUrl = f"{urlBase}&qty={cantidad}"  # &qty= le indica a Mockaroo cuantos registros necesita que devuelva
@@ -187,6 +285,14 @@ class interfazParqueo:
 
     #Menu Principal
     def mostrarMenuPrincipal(self):
+        """
+        Funcionamiento:
+        Inicializa, empaqueta e integra los widgets y botones iniciales que componen el Menú Principal del software gráfico de estacionamiento.
+        Entradas:
+        Ninguna.
+        Salidas:
+        Ninguna.
+        """
         # Se configura el titulo del menú principal
         self.ventana.title("Sistema de Estacionamiento Inteligente - TEC")
         mensInstruccion = tk.Label(self.ventana,
@@ -230,6 +336,14 @@ class interfazParqueo:
         self.actualizarEstadoBotonesMenu()
 
     def actualizarEstadoBotonesMenu(self):
+        """
+        Funcionamiento:
+        Habilita o deshabilita condicionalmente la accesibilidad de ciertos botones del Menú Principal del sistema basándose en la presencia o ausencia de una base de datos activa.
+        Entradas:
+        Ninguna.
+        Salidas:
+        Ninguna.
+        """
         # Si no existe una base de datos de parqueos, se deshabilitan todas las opciones
         # excepto "Configuración y ver estacionamiento" (que es la que permite crear la base de datos) y "Salir"
         if self.hayBaseDatos:
@@ -245,12 +359,28 @@ class interfazParqueo:
         self.botonSalir.config(state="normal")
 
     def cerrarVentanaSecundariaYRegresar(self, ventanaSecundaria):
+        """
+        Funcionamiento:
+        Cierra (destruye) un formulario o ventana secundaria abierta para restaurar la visualización del Menú Principal que se encontraba oculto.
+        Entradas:
+        ventanaSecundaria (tk.Toplevel): La ventana que se desea remover del plano.
+        Salidas:
+        Ninguna.
+        """
         # Cierra la ventana secundaria actual y vuelve a mostrar el Menú Principal
         ventanaSecundaria.destroy()
         self.ventana.deiconify()
 
     #Configuración
     def mostrarPantallaConfiguracion(self):
+        """
+        Funcionamiento:
+        Despliega una interfaz dedicada con entradas de texto que permiten configurar parámetros administrativos del sistema tales como el tamaño de estacionamiento, tiempo de gracia y tarifas por hora.
+        Entradas:
+        Ninguna.
+        Salidas:
+        Ninguna.
+        """
         # Se oculta el Menú Principal mientras se usa esta ventana
         self.ventana.withdraw()
         # Se crea una ventana secundaria para la configuración
@@ -311,6 +441,13 @@ class interfazParqueo:
         self.botonRegresarConfig.pack(pady=(0, 20))
 
     def verificarYCrear(self):
+        """
+        Funcionamiento: Ejecuta comprobaciones estrictas de reglas de negocio sobre los datos de configuración ingresados (horarios permitidos, tipos de datos correctos, cuotas mínimas de distribución por discapacitados/eléctricos), genera aleatoriamente la ocupación inicial del parqueo mediante mezcla (shuffle) y crea el archivo binario nuevo para el sistema.
+        Entradas: 
+        Ninguna.
+        Salidas: 
+        Ninguna.
+        """
         horaActual = datetime.now().hour
         if horaActual >= 21 or horaActual < 7:
             messagebox.showwarning("Horario Restringido", 
@@ -520,6 +657,13 @@ class interfazParqueo:
             messagebox.showwarning("Rango Incorrecto", f"La cantidad debe ser de al menos {minimoRequerido} espacios para esta configuracion")
 
     def cargarConfiguracionExistente(self):
+        """
+        Funcionamiento: Intenta leer el archivo configuracion.json para extraer y reestablecer en los atributos de la instancia las variables de tiempo de gracia y monto de cobro por hora.
+        Entradas: 
+        Ninguna.
+        Salidas: 
+        Ninguna.
+        """
         try:
             with open("configuracion.json", "r") as archivoJson:
                 datosConfig = json.load(archivoJson)
@@ -532,6 +676,14 @@ class interfazParqueo:
 
     #Ver estacionamiento
     def abrirVerEstacionamiento(self):
+        """
+        Funcionamiento: 
+        Valida la disponibilidad de los datos operativos e invoca la creación del entorno gráfico dinámico destinado a mostrar el mapa de distribución del parqueo.
+        Entradas:
+        Ninguna.
+        Salidas:
+        Ninguna.
+        """
         # Si no hay base de datos, no se permite abrir el estacionamiento
         if not self.hayBaseDatos:
             messagebox.showinfo("Configuración Requerida", 
@@ -551,6 +703,14 @@ class interfazParqueo:
         self.mostrarEspaciosPaginaActual()
 
     def mostrarEspaciosParqueo(self):
+        """
+        Funcionamiento:
+        Construye la estructura estática base de la ventana de visualización, incluyendo los títulos, paginaciones, elementos de referencia física (baños, casetilla) y botones de navegación de la cuadrícula.
+        Entradas:
+        Ninguna.
+        Salidas:
+        Ninguna.
+        """
         horaActual = datetime.now().hour
         if horaActual >= 21 or horaActual < 7:
             for fila in range(len(self.matrizParqueos)):
@@ -614,6 +774,14 @@ class interfazParqueo:
         self.botonRegresarParqueo.grid(row=7, column=0, columnspan=11, pady=(15, 15))
 
     def mostrarEspaciosPaginaActual(self):
+        """
+        Funcionamiento:
+        Limpia los componentes interactivos previos de la pantalla y renderiza matemáticamente un bloque segmentado de 25 espacios de parqueo correspondientes a la página activa, asignando colores específicos según el tipo de espacio y su disponibilidad.
+        Entradas:
+        Ninguna.
+        Salidas: 
+        Ninguna.
+        """
         # Desaparece los parqueos de la página anterior
         for botonAnterior in self.listaBotonesDinamicos:
             botonAnterior.destroy()
@@ -748,6 +916,14 @@ class interfazParqueo:
         self.actualizarEstadoFlechas()
 
     def generarHoraEntradaAleatoria(self):
+        """
+        Funcionamiento:
+        Genera una cadena de fecha y hora válida simulada de manera fortuita, comprendida estrictamente entre las 7:00 AM del día en curso y la hora actual del sistema.
+        Entradas:
+        Ninguna.
+        Salidas:
+        str: Cadena de texto formateada bajo la máscara AAAA-MM-DD HH:MM:SS.
+        """
         # Se Obtiene la hora actual
         momentoActual = datetime.now()
         fechaDeHoy = momentoActual.strftime("%Y-%m-%d")
@@ -773,6 +949,14 @@ class interfazParqueo:
         return resultadoFinal
 
     def actualizarEstadoFlechas(self):
+        """
+        Funcionamiento:
+        Analiza el índice de la página actual frente al límite de capacidad máxima para activar o desactivar los controles gráficos interactivos de avance y retroceso (◀ y ▶).
+        Entradas:
+        Ninguna.
+        Salidas:
+        Ninguna.
+        """
         # Se habilitan y deshabilitan las flechas dependiendo si hay mas paginas para avanzar o retroceder o si ya llego a un tope
         if self.totalParqueos <= self.parqueosPorPagina:
             self.botonIzquierda.config(state="disabled", bg="#A6B9CB")
@@ -789,14 +973,38 @@ class interfazParqueo:
             self.botonDerecha.config(state="disabled", bg="#A6B9CB")
 
     def paginaSiguiente(self):
+        """
+        Funcionamiento:
+        Incrementa el contador de páginas activas de la vista del estacionamiento y solicita el refresco visual de los componentes en pantalla.
+        Entradas:
+        Ninguna.
+        Salidas:
+        Ninguna.
+        """
         self.paginaActual += 1
         self.mostrarEspaciosPaginaActual()
 
     def paginaAnterior(self):
+        """
+        Funcionamiento:
+        Decrementa el contador de páginas de visualización del estacionamiento y actualiza el renderizado de la cuadrícula de espacios.
+        Entradas:
+        Ninguna.
+        Salidas:
+        Ninguna.
+        """
         self.paginaActual -= 1
         self.mostrarEspaciosPaginaActual()
 
     def clickEspacio(self, parqueoEspecifico):
+        """
+        Funcionamiento:
+        Captura el evento de selección sobre un espacio de estacionamiento en la cuadrícula, evalúa el estado del parqueo para desplegar una ventana informativa emergente rellenada con los datos del automóvil o bien los controles interactivos para proceder a estacionar o pagar.
+        Entradas:
+        parqueoEspecifico (espacioParqueo): Objeto con las propiedades del espacio seleccionado.
+        Salidas:
+        Ninguna.
+        """
         horaActual = datetime.now().hour
         if horaActual >= 21 or horaActual < 7:
             messagebox.showwarning("Horario No Permitido", "El parqueo está cerrado de noche. No se pueden registrar o retirar vehículos hasta las 7am.")
@@ -924,6 +1132,14 @@ class interfazParqueo:
             botonAccion.config(command=lambda: self.abrirVentanaPago(parqueoEspecifico, ventanaInfoVehiculo))
 
     def abrirVentanaPago(self, parqueoEspecifico, ventanaInfoVehiculo):
+        """
+        Funcionamiento:
+        Realiza la consulta de tiempo transcurrido calculando la diferencia cronológica entre el ingreso del vehículo y el momento actual, aplica deducciones por el parámetro "tiempo de gracia" y gestiona la apertura del desglose monetario final de cobro.
+        Entradas:
+        parqueoEspecifico (espacioParqueo): Instancia de parqueo que contiene el automóvil a retirar.
+        ventanaInfoVehiculo (tk.Toplevel): Formulario de información previo que se procede a enlazar.
+        Salidas:Ninguna.
+        """
         horaEntrada = parqueoEspecifico.estadia[1]
         try:
             objetoEntrada = datetime.strptime(horaEntrada, "%Y-%m-%d %H:%M:%S")
@@ -961,58 +1177,96 @@ class interfazParqueo:
         comboTipoPago.set("Efectivo")
         comboTipoPago.pack(pady=10)
 
-        def ejecutarPago():
-            # idPago: 1 efectivo, 2 sinpe, 3 tarjeta (entero, según self.listaTipoPago)
-            idPago = self.convertirAEntero(self.listaTipoPago, comboTipoPago.get())
-            placa, marca, color, tipoVehiculo = parqueoEspecifico.info
-            fechaEntrada = objetoEntrada.strftime("%d-%m-%Y %H:%M:%S")
-            fechaSalida = objetoSalida.strftime("%d-%m-%Y %H:%M:%S")
-            # Intentar generar el PDF de la factura
-            exitoPDF = self.crearFacturaPDF(parqueoEspecifico.id, placa, marca, color, fechaEntrada, fechaSalida, montoFinal, idPago)
-            if exitoPDF:
-                #Se añade el vehículo al historial de pagos diarios
-                try:
-                    with open("historialPagos.json", "r", encoding="utf-8") as f:
-                        historial = json.load(f)
-                except:
-                    historial = []
-                historial.append({
-                    "idCampo": parqueoEspecifico.id,
-                    "placa": placa,
-                    "horaEntrada": objetoEntrada.strftime("%d/%m/%y %H:%M:%S"),
-                    "horaSalida": objetoSalida.strftime("%d/%m/%y %H:%M:%S"),
-                    "tipoPago": idPago,
-                    "monto": montoFinal
-                })
-                try:
-                    with open("historialPagos.json", "w", encoding="utf-8") as f:
-                        json.dump(historial, f, indent=4, ensure_ascii=False)
-                except Exception as e:
-                    print(f"Error crítico al escribir en historial_pagos.json: {e}")
-                # Modificar el estado del espacio para liberarlo
-                parqueoEspecifico.libre = True
-                parqueoEspecifico.info = (placa, marca, color, tipoVehiculo)
-                parqueoEspecifico.estadia = [parqueoEspecifico.id, horaEntrada, fechaSalida]
-                parqueoEspecifico.pago = (montoFinal, idPago)
-                # Actualizar la base de datos binaria
-                try:
-                    with open("bdParqueo.txt", "wb") as archivoBinario:
-                        pickle.dump(self.baseDatosParqueos, archivoBinario)
-                except:
-                    print("Error al guardar la base de datos de manera binaria.")
-                # Redibujar la cuadrícula en tiempo real
-                self.mostrarEspaciosPaginaActual()
-                messagebox.showinfo("Pago Exitoso", f"Espacio {parqueoEspecifico.id} liberado correctamente.\nFactura PDF generada.")
-                ventanaPago.destroy()
-                ventanaInfoVehiculo.destroy()
         botonFinalizarPago = tk.Button(ventanaPago,
                                        text="Finalizar Pago",
                                        font=("Arial", 10, "bold"), 
-                                       command=ejecutarPago,
+                                       command=lambda: self.ejecutarPago(
+                                           parqueoEspecifico, 
+                                           comboTipoPago, 
+                                           objetoEntrada, 
+                                           objetoSalida, 
+                                           montoFinal, 
+                                           horaEntrada, 
+                                           ventanaPago, 
+                                           ventanaInfoVehiculo
+                                       ),
                                        bd=1)
         botonFinalizarPago.pack(pady=15)
 
+    def ejecutarPago(self, parqueoEspecifico, comboTipoPago, objetoEntrada, objetoSalida, montoFinal, horaEntrada, ventanaPago, ventanaInfoVehiculo):
+        """
+        Funcionamiento: Procesa la finalización del pago de un espacio de parqueo, genera la factura en formato PDF, registra la transacción en el historial local (JSON), libera el espacio en el sistema, actualiza la base de datos binaria y refresca la interfaz gráfica.
+        Entradas:
+        parqueoEspecifico (espacioParqueo): Instancia del espacio que se está pagando.
+        comboTipoPago (ttk.Combobox): Elemento gráfico que contiene el método de pago seleccionado.
+        objetoEntrada (datetime): Fecha y hora en la que ingresó el vehículo.
+        objetoSalida (datetime): Fecha y hora en la que sale el vehículo (momento del pago).
+        montoFinal (int/float): Cantidad total a cobrar calculada previamente.
+        horaEntrada (str): Cadena de texto original de la hora de ingreso.
+        ventanaPago (tk.Toplevel): Ventana gráfica de cobro a destruir al finalizar.
+        ventanaInfoVehiculo (tk.Toplevel): Ventana gráfica de información a destruir al finalizar.
+        Salidas:
+        Ninguna.
+        """
+        # idPago: 1 efectivo, 2 sinpe, 3 tarjeta (entero, según self.listaTipoPago)
+        idPago = self.convertirAEntero(self.listaTipoPago, comboTipoPago.get())
+        placa, marca, color, tipoVehiculo = parqueoEspecifico.info
+        fechaEntrada = objetoEntrada.strftime("%d-%m-%Y %H:%M:%S")
+        fechaSalida = objetoSalida.strftime("%d-%m-%Y %H:%M:%S")
+        # Intentar generar el PDF de la factura
+        exitoPDF = self.crearFacturaPDF(parqueoEspecifico.id, placa, marca, color, fechaEntrada, fechaSalida, montoFinal, idPago)
+        if exitoPDF:
+            #Se añade el vehículo al historial de pagos diarios
+            try:
+                with open("historialPagos.json", "r", encoding="utf-8") as f:
+                    historial = json.load(f)
+            except:
+                historial = []
+            historial.append({
+                "idCampo": parqueoEspecifico.id,
+                "placa": placa,
+                "horaEntrada": objetoEntrada.strftime("%d/%m/%y %H:%M:%S"),
+                "horaSalida": objetoSalida.strftime("%d/%m/%y %H:%M:%S"),
+                "tipoPago": idPago,
+                "monto": montoFinal
+            })
+            try:
+                with open("historialPagos.json", "w", encoding="utf-8") as f:
+                    json.dump(historial, f, indent=4, ensure_ascii=False)
+            except Exception as e:
+                print(f"Error crítico al escribir en historial_pagos.json: {e}")
+            # Modificar el estado del espacio para liberarlo
+            parqueoEspecifico.libre = True
+            parqueoEspecifico.info = (placa, marca, color, tipoVehiculo)
+            parqueoEspecifico.estadia = [parqueoEspecifico.id, horaEntrada, fechaSalida]
+            parqueoEspecifico.pago = (montoFinal, idPago)
+            # Actualizar la base de datos binaria
+            try:
+                with open("bdParqueo.txt", "wb") as archivoBinario:
+                    pickle.dump(self.baseDatosParqueos, archivoBinario)
+            except:
+                print("Error al guardar la base de datos de manera binaria.")
+            # Redibujar la cuadrícula en tiempo real
+            self.mostrarEspaciosPaginaActual()
+            messagebox.showinfo("Pago Exitoso", f"Espacio {parqueoEspecifico.id} liberado correctamente.\nFactura PDF generada.")
+            ventanaPago.destroy()
+            ventanaInfoVehiculo.destroy()
+
     def crearFacturaPDF(self, idCampo, placa, marca, color, fechaEntrada, fechaSalida, monto, idPago):
+        """
+        Funcionamiento: Genera un documento PDF estructurado que funge como comprobante de pago del estacionamiento, incluyendo los detalles del vehículo, tiempos de estadía, monto cobrado y un código QR de verificación.
+        Entradas:
+        idCampo (int): Número identificador del espacio.
+        placa (str): Matrícula del vehículo.
+        marca (int): Índice de la marca del vehículo.
+        color (int): Índice del color del vehículo.
+        fechaEntrada (str): Fecha y hora de ingreso formateada.
+        fechaSalida (str): Fecha y hora de salida formateada.
+        monto (int/float): Total monetario cobrado.
+        idPago (int): Índice numérico del método de pago utilizado.
+        Salidas:
+        bool: Retorna True si el documento PDF se generó y guardó con éxito, o False en caso de ocurrir un error.
+        """
         # idCampo, marca, color e idPago se convierten a texto únicamente para mostrarlos en la factura
         idTexto = self.formatearID(idCampo)
         marcaTexto = self.convertirATexto(self.listaMarcas, marca)
@@ -1062,6 +1316,13 @@ class interfazParqueo:
             return False
 
     def generarCierrePorTipoPago(self):
+        """
+        Funcionamiento: Agrupa y clasifica los espacios pagados según su método de transacción (Efectivo, SINPE, Tarjeta) para generar y exportar un reporte estructurado en un archivo XML, notificando finalmente al usuario sobre los tipos de pago registrados.
+        Entradas:
+        Ninguna.
+        Salidas:
+        Ninguna (genera un archivo físico .xml en el directorio local).
+        """
         # Listas de filtración local
         pagosEfectivo = []
         pagosSinpe = []
@@ -1117,6 +1378,14 @@ class interfazParqueo:
         messagebox.showinfo("Reporte Generado", mensajeAlerta)
 
     def registrarAtributosPlanos(self, listaEspaciosPagados, elementoXmlPadre):
+        """
+        Funcionamiento: Extrae y formatea los atributos de una lista de objetos de parqueo pagados para insertarlos como subelementos XML planos dentro de un nodo padre especificado, facilitando la jerarquización del reporte.
+        Entradas:
+        listaEspaciosPagados (list): Colección de objetos espacioParqueo que ya fueron facturados.
+        elementoXmlPadre (xml.etree.ElementTree.Element): Nodo XML al que se le anexarán los registros.
+        Salidas:
+        Ninguna.
+        """
         # Metodo auxiliar para plasmar los datos de forma plana en el XML
         for espacioPagado in listaEspaciosPagados:
             placa, marca, color, tipoVehiculo = espacioPagado.info
@@ -1135,6 +1404,19 @@ class interfazParqueo:
                                                                "idPago": str(idPago)})
 
     def procesarEstacionamiento(self, parqueoEspecifico, placa, marca, color, tipo, horaEntrada, ventanaInfoVehiculo):
+        """
+        Funcionamiento: Valida el formato de la placa y que todos los datos del vehículo estén completos. De ser correctos, registra la ocupación del espacio, guarda el estado en la base de datos binaria, emite un voucher en PDF y actualiza la cuadrícula visual de la interfaz.
+        Entradas:
+        parqueoEspecifico (espacioParqueo): Instancia del espacio que será ocupado.
+        placa (str): Matrícula digitada por el usuario.
+        marca (str): Texto seleccionado de la marca del vehículo.
+        color (str): Texto seleccionado del color del vehículo.
+        tipo (str): Texto seleccionado del tipo de vehículo.
+        horaEntrada (str): Cadena de texto con la fecha y hora de ingreso.
+        ventanaInfoVehiculo (tk.Toplevel): Ventana gráfica desde donde se realiza la acción.
+        Salidas:
+        Ninguna.
+        """
         if not placa.strip() or not marca or not color or not tipo:
             messagebox.showwarning("Campos Incompletos",
                                    "Por favor, complete todos los campos requeridos.")
@@ -1174,6 +1456,18 @@ class interfazParqueo:
         ventanaInfoVehiculo.destroy()
 
     def crearVoucherPDF(self, idCampo, placa, marca, color, tipo, horaEntrada):
+        """
+        Funcionamiento: Genera y guarda un documento PDF individual que sirve como comprobante de ingreso al parqueo, detallando las características del vehículo, la hora de entrada y un código QR con la información concatenada.
+        Entradas:
+        idCampo (int): Número de campo asignado.
+        placa (str): Matrícula del vehículo.
+        marca (int): Índice numérico de la marca.
+        color (int): Índice numérico del color.
+        tipo (int): Índice numérico del tipo de carrocería.
+        horaEntrada (str): Fecha y hora del ingreso.
+        Salidas:
+        Ninguna.
+        """
         try:
             # idCampo, marca, color y tipo se convierten a texto únicamente para mostrarlos en el voucher
             idTexto = self.formatearID(idCampo)
@@ -1222,6 +1516,13 @@ class interfazParqueo:
             print(f"Error al estructurar el PDF del Voucher: {e}")
 
     def generarVouchersMasivos(self):
+        """
+        Funcionamiento: Recorre todos los vehículos actualmente estacionados en la base de datos y genera un único archivo PDF que contiene los comprobantes de ingreso de todos ellos (asignando una página por vehículo) con sus respectivos códigos QR.
+        Entradas:
+        Ninguna.
+        Salidas:
+        Ninguna (genera un archivo .pdf masivo a nivel local).
+        """
         if not self.hayBaseDatos or not self.baseDatosParqueos:
             messagebox.showwarning("Aviso", "No hay una base de datos activa en el sistema.")
             return
@@ -1284,6 +1585,13 @@ class interfazParqueo:
             messagebox.showerror("Error", f"Ocurrió un problema al generar los vouchers: {e}")
 
     def abrirVentanaAcercaDe(self):
+        """
+        Funcionamiento: Crea y despliega una ventana secundaria interactiva con información estática que muestra la descripción del proyecto y los créditos de los desarrolladores del sistema.
+        Entradas:
+        Ninguna.
+        Salidas:
+        Ninguna.
+        """
         ventanaAcerca = tk.Toplevel(self.ventana)
         ventanaAcerca.title("Acerca de")
         self.dimensionarVentana(ventanaAcerca, 600, 600)
@@ -1304,6 +1612,13 @@ class interfazParqueo:
         btnRegresar.place(x=235, y=540)
 
     def abrirVentanaReportes(self):
+        """
+        Funcionamiento: Valida el horario de funcionamiento permitido y abre una interfaz gráfica secundaria que contiene los botones de acción para invocar la generación de los distintos reportes administrativos (Cierre Diario, Cierre por Pago, Exportar CSV).
+        Entradas:
+        Ninguna.
+        Salidas:
+        Ninguna.
+        """
         horaActual = datetime.now().hour
         if horaActual >= 21 or horaActual < 7:
             messagebox.showwarning("Horario Restringido", 
@@ -1348,6 +1663,13 @@ class interfazParqueo:
         self.btnRegresarReportes.pack(anchor="w", padx=margenIzquierdo, pady=(8, 30))
 
     def ejecutarCierreDiario(self):
+        """
+        Funcionamiento: Efectúa el cobro automático de todos los vehículos presentes (asignando un método de pago aleatorio) sumándolo al historial de hoy, libera la totalidad de espacios, genera un documento PDF con la tabla detallada y el resumen de recaudación, almacena los datos en memoria para una posible exportación CSV y reinicia el historial local.
+        Entradas:
+        Ninguna.
+        Salidas:
+        Ninguna.
+        """
         if not self.hayBaseDatos or not self.baseDatosParqueos:
             messagebox.showwarning("Cierre Diario", "No hay una base de datos activa para cerrar.")
             return
@@ -1492,6 +1814,13 @@ class interfazParqueo:
             messagebox.showerror("Error", f"Problema al generar reporte: {e}")
 
     def exportarCierreCSV(self):
+        """
+        Funcionamiento: Exporta la información del último cierre diario almacenada en memoria hacia un archivo con formato CSV, utilizando el punto y coma (;) como delimitador para su correcta lectura en hojas de cálculo. Valida previamente que exista un cierre cargado.
+        Entradas:
+        Ninguna.
+        Salidas:
+        Ninguna.
+        """
         # Verifica si existe información del último cierre diario (si ya se ejecutó el reporte 1)
         if len(self.datosUltimoCierre) == 0:
             messagebox.showwarning("Aviso", "Primero debe ejecutar el 'Cierre Diario' para poder exportarlo a CSV.")
